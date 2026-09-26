@@ -134,8 +134,11 @@ void main() {
     col += uSunColor * sm * glint * (0.35 + fres) * smoothstep(0.0, 0.2, ndlG) * shadow * (1.0 - cloud);
   }
 
-  // faint starlight / nebula fill so the night side is not a pure hole in the sky
-  col += albedo * uAmbient;
+  // Cinematic fill: a soft, cool light from the viewer's side that only works on the night
+  // hemisphere, so terrain stays readable there while still clearly reading as night.
+  // The day side and the terminator are untouched.
+  float night = 1.0 - smoothstep(-0.2, 0.25, ndlG);
+  col += albedo * uAmbient * (0.3 + 0.7 * max(dot(N, V), 0.0)) * night;
 
   // night lights / lava glow
   if (uHasEmissive > 0.5) {
@@ -173,7 +176,8 @@ void main() {
   float lit = smoothstep(-0.12, 0.2, ndl) * (0.3 + 0.7 * max(ndl, 0.0));
   vec3 tint = mix(vec3(1.0, 0.55, 0.32), vec3(1.0), smoothstep(0.02, 0.35, ndl));
   vec3 col = uCloudColor * uSunColor * lit * tint;
-  col += uCloudColor * uAmbient;
+  float night = 1.0 - smoothstep(-0.2, 0.25, ndl);
+  col += uCloudColor * uAmbient * (0.3 + 0.7 * max(dot(N, normalize(cameraPosition - vWorldPos)), 0.0)) * night;
   float a = clamp(d * uOpacity, 0.0, 1.0) * uFade;
   gl_FragColor = vec4(col * a, a);
 }

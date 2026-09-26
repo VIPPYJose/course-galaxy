@@ -63,7 +63,7 @@ export class StarSystem {
       kepler: ORBIT_SPEED,
       seed: [...galaxy.id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) >>> 0,
       sunColor: this.env.sunColor,
-      ambient: new THREE.Color(0.006, 0.007, 0.01),
+      ambient: new THREE.Color(0.5, 0.58, 0.78).multiplyScalar(0.12),
     });
     this.belt.orbitRadius = 0;
     this.belt.targetOrbit = 0;

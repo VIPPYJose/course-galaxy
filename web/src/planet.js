@@ -15,6 +15,9 @@ export const TYPE_RADIUS = {
 const BELT_TYPES = new Set(['jovian', 'neptune']);
 export const BELT = { inner: 1.45, outer: 2.05 };
 
+// Strength of the soft fill on the night side: enough to see the features, well short of daylight.
+const NIGHT_FILL = 0.12;
+
 export function beltAllowed(def) {
   return !def.rings;
 }
@@ -111,7 +114,8 @@ export class Planet {
       // Set every frame from the star: the direction from this planet to the star, and its light.
       uSunDir: { value: new THREE.Vector3(1, 0, 0) },
       uSunColor: { value: new THREE.Color(1, 0.97, 0.92).multiplyScalar(2.1) },
-      uAmbient: { value: new THREE.Color(0.006, 0.007, 0.01) },
+      // night-side fill (moonlight blue); see the surface shader
+      uAmbient: { value: new THREE.Color(0.5, 0.58, 0.78).multiplyScalar(NIGHT_FILL) },
       uFade: { value: 0 },
     };
     const S = this.sharedUniforms;
