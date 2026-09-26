@@ -116,9 +116,10 @@ void main() {
  *  count        number of rocks
  *  size         [min, max] rock size; sizes follow a steep power law, so big ones are rare
  *  kepler       angular speed constant: omega = kepler / r^1.5
+ *  ice          fraction of bright, icy bodies mixed in (0 = only rock)
  */
 export class AsteroidBelt {
-  constructor({ radius, width, thickness, count, size, kepler, seed = 1, sunColor, ambient }) {
+  constructor({ radius, width, thickness, count, size, kepler, seed = 1, sunColor, ambient, ice = 0 }) {
     const rnd = mulberry32(seed * 7919 + 17);
     const base = rockGeometry();
     const g = new THREE.InstancedBufferGeometry();
@@ -133,6 +134,7 @@ export class AsteroidBelt {
     // true 5-25% albedo so the belt still reads against the sky
     const cType = [0.16, 0.155, 0.15];
     const sType = [0.3, 0.25, 0.19];
+    const iceType = [0.62, 0.66, 0.72];
     const gaps = [rnd() * 1.6 - 0.8, rnd() * 1.6 - 0.8];
     const axis = new THREE.Vector3();
     for (let i = 0; i < count; i++) {
@@ -145,7 +147,7 @@ export class AsteroidBelt {
       spin.set([axis.x, axis.y, axis.z, (0.1 + rnd() * 0.6) * (rnd() < 0.5 ? -1 : 1)], i * 4);
       const s = size[0] + (size[1] - size[0]) * Math.pow(rnd(), 4.5);
       shape.set([s * (0.85 + rnd() * 0.3), s * (0.5 + rnd() * 0.35), s * (0.6 + rnd() * 0.35), rnd() * Math.PI * 2], i * 4);
-      const c = rnd() < 0.6 ? cType : sType;
+      const c = ice > 0 && rnd() < ice ? iceType : rnd() < 0.6 ? cType : sType;
       const shade = 0.7 + rnd() * 0.5;
       color.set([c[0] * shade, c[1] * shade, c[2] * shade], i * 3);
     }

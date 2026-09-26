@@ -17,6 +17,12 @@ vec3 hueShift(vec3 c, float a) {
   float ca = cos(a);
   return max(c * ca + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - ca), 0.0);
 }
+
+// Saturation and brightness grading (the Forge's surface sliders).
+vec3 grade(vec3 c, float sat, float bright) {
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  return max(mix(vec3(l), c, sat), 0.0) * bright;
+}
 `;
 
 // ------------------------------------------------------------------ planet surface
@@ -50,6 +56,8 @@ void main() {
 export const surfaceFrag = /* glsl */ `
 ${common}
 uniform float uHue;
+uniform float uSat, uBright;
+uniform float uAlpha;
 uniform sampler2D uColorMap;
 uniform sampler2D uNormalMap;
 uniform sampler2D uSpecMap;
@@ -91,7 +99,7 @@ void main() {
   float ndlG = dot(Ng, L);
   float ndl = dot(N, L);
 
-  vec3 albedo = hueShift(texture2D(uColorMap, vUv).rgb, uHue) * uTint;
+  vec3 albedo = grade(hueShift(texture2D(uColorMap, vUv).rgb, uHue), uSat, uBright) * uTint;
 
   // diffuse: Lambert, blended towards Lommel-Seeliger for dusty regolith
   float mu0 = max(ndl, 0.0);
@@ -151,9 +159,13 @@ void main() {
   float fr = pow(1.0 - max(dot(Ng, V), 0.0), 3.0);
   col += uHover * fr * mix(vec3(0.5, 0.8, 1.0), uAtmoColor, 0.5) * 0.8;
 
-  gl_FragColor = vec4(col * uFade, 1.0);
+  gl_FragColor = vec4(col * uFade, uAlpha);
 }
 `;
+
+// Moons: the surface shader on a mesh that may be lumpy (small captured moons), so shading
+// follows the geometry's own normals rather than the sphere's.
+export const moonVert = surfaceVert.replace('vec3 n = normalize(position);', 'vec3 n = normalize(normal);');
 
 // ------------------------------------------------------------------ clouds
 export const cloudFrag = /* glsl */ `
@@ -293,6 +305,7 @@ uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform vec3 uTint;
 uniform float uFade;
+uniform float uOpacity;
 varying vec3 vLocal;
 varying vec3 vWorldPos;
 varying vec3 vRingN;
@@ -315,7 +328,7 @@ void main() {
   float shadow = 1.0;
   if (tc > 0.0) shadow = smoothstep(uRp * 0.97, uRp * 1.01, length(p + L * tc));
   vec3 col = hueShift(s.rgb, uHue) * uTint * uSunColor * bright * (0.04 + 0.96 * shadow);
-  float a = s.a * uFade;
+  float a = clamp(s.a * uOpacity, 0.0, 1.0) * uFade;
   gl_FragColor = vec4(col * a, a);
 }
 `;

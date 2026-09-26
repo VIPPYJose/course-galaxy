@@ -1,7 +1,9 @@
 // DOM overlay: planet list, galaxy switcher, detail card, prompt bar, modals and toasts.
-import { store, isSaved, progressOf, NEBULAE } from './data.js';
-import { planetTypes, getType, typeSwatch, STARS, starInfo } from './assets.js';
-import { hasBelt, beltAllowed } from './planet.js';
+import { store, isSaved, progressOf } from './data.js';
+import { planetTypes, getType, typeSwatch } from './assets.js';
+import { sunOf, starLabel, resolvePlanet, randomPlanet, PLANET_FIELDS, PLANET_LOOK_KEYS, planetValue, randomValue, clearTypeOverrides } from './params.js';
+import { renderFields, renderMoons } from './fields.js';
+import { openForge } from './forge.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -27,6 +29,11 @@ export function initUI(appRef) {
   $('#delete-planet').addEventListener('click', removeFocused);
 
   window.addEventListener('keydown', (e) => {
+    // the Galaxy Forge has its own keys; only let Escape close a dialog it opened
+    if (app.forge) {
+      if (e.key === 'Escape' && document.querySelector('.backdrop')) closeModal();
+      return;
+    }
     if (e.key === 'Escape') {
       closeModal();
       toggleGalaxyMenu(false);
@@ -89,10 +96,9 @@ export function renderAll() {
 function renderHeader() {
   const g = store.galaxy;
   const all = store.state.galaxies;
-  const star = starInfo(g.star);
   $('#galaxy-name').textContent = g.name;
   $('#galaxy-count').textContent = `SYSTEM ${all.findIndex((x) => x.id === g.id) + 1}/${all.length}`;
-  $('#galaxy-star').textContent = star.label;
+  $('#galaxy-star').textContent = starLabel(g);
   const multi = all.length > 1;
   $('#galaxy-prev').style.visibility = multi ? 'visible' : 'hidden';
   $('#galaxy-next').style.visibility = multi ? 'visible' : 'hidden';
@@ -160,7 +166,8 @@ export function renderInfo() {
   set('#st-progress', `${pct}%`, saved ? 'good' : '');
   set('#st-size', (p.size ?? 1).toFixed(2));
   set('#st-type', t.name);
-  set('#st-atmo', !t.atmo ? 'NONE' : t.atmo.thickness >= 0.06 ? 'DENSE' : 'THIN');
+  const atmo = resolvePlanet(p, t).atmo;
+  set('#st-atmo', !atmo ? 'NONE' : atmo.thickness >= 0.06 ? 'DENSE' : 'THIN');
   set('#st-left', String(p.lessons - p.completed));
   set('#st-status', saved ? 'SAVED' : p.completed ? 'CLAIMING' : 'UNCHARTED', saved ? 'good' : '');
   set('#st-done', String(p.completed));
@@ -179,13 +186,14 @@ function renderGalaxyMenu() {
     '<div class="dd-head"><span>.. &gt; GALAXIES</span><span>SAVED</span></div>' +
     store.state.galaxies
       .map((g) => {
-        const star = starInfo(g.star);
+        const glow = sunOf(g).glow;
         const saved = g.planets.filter(isSaved).length;
         return `<button data-id="${g.id}" class="${g.id === store.galaxy.id ? 'active' : ''}">
-          <span class="star-dot" style="background:${star.glow};color:${star.glow}"></span>
+          <span class="star-dot" style="background:${glow};color:${glow}"></span>
           ${esc(g.name)}<span class="meta">${saved}/${g.planets.length}</span></button>`;
       })
       .join('') +
+    '<button class="new" data-edit="1">CUSTOMIZE THIS GALAXY</button>' +
     '<button class="new" data-new="1">+ NEW GALAXY</button>';
   menu.querySelectorAll('button[data-id]').forEach((b) =>
     b.addEventListener('click', () => {
@@ -195,7 +203,11 @@ function renderGalaxyMenu() {
   );
   menu.querySelector('[data-new]').addEventListener('click', () => {
     toggleGalaxyMenu(false);
-    openGalaxyModal();
+    openForge();
+  });
+  menu.querySelector('[data-edit]').addEventListener('click', () => {
+    toggleGalaxyMenu(false);
+    openForge({ edit: store.galaxy.id });
   });
 }
 
@@ -256,15 +268,15 @@ export function openPlanetModal(existing = null) {
     lessons: 10,
     completed: 0,
   };
-  // belt: null follows the planet type's default until the user picks ON or OFF
-  const state = { type: getType(p.type).id, belt: p.belt ?? null };
-  const beltOn = () => hasBelt({ belt: state.belt ?? undefined }, getType(state.type));
+  // The world settings are edited on a copy and only applied on save.
+  const w = structuredClone(Object.fromEntries(['type', ...PLANET_LOOK_KEYS].filter((k) => p[k] !== undefined).map((k) => [k, p[k]])));
+  w.type = getType(p.type).id;
 
   const modal = openModal({
     kicker: editing ? 'PLANET > EDIT' : 'PLANET > CHART',
     title: editing ? p.name : 'New planet',
     body: `
-    <p class="lead">${editing ? 'Tweak the course or the world that represents it.' : 'Every course is a world. Pick a planet type and it will be charted into this galaxy.'}</p>
+    <p class="lead">${editing ? 'Tweak the course or the world that represents it.' : 'Every course is a world. Pick a planet type and shape it, and it will be charted into this galaxy.'}</p>
     <form id="planet-form" autocomplete="off">
       <div class="row">
         <div class="field"><label for="pf-name">Planet name</label><input id="pf-name" type="text" maxlength="24" required value="${esc(p.name)}" placeholder="e.g. Calculon"></div>
@@ -272,47 +284,47 @@ export function openPlanetModal(existing = null) {
       </div>
       <div class="field"><label for="pf-course">Course</label><input id="pf-course" type="text" maxlength="60" required value="${esc(p.course)}" placeholder="e.g. Calculus II: Integration"></div>
       ${editing ? `<div class="field"><label for="pf-done">Lessons completed</label><input id="pf-done" type="number" min="0" max="${p.lessons}" value="${p.completed}"></div>` : ''}
-      <div class="field"><span class="lbl">Planet type</span>
-        <div class="biomes">${types
-          .map(
-            (t) => `<button type="button" class="biome ${t.id === state.type ? 'active' : ''}" data-type="${t.id}" title="${esc(t.kind)}">
-              <img class="orb" src="${t.maps.thumb}" alt="" draggable="false">${esc(t.name)}</button>`,
-          )
-          .join('')}</div>
-      </div>
-      <div class="row">
-        <div class="field"><label for="pf-size">Size</label><input id="pf-size" type="range" min="0.7" max="1.7" step="0.05" value="${p.size}"></div>
-        <div class="field"><label for="pf-hue">Colour shift</label><input id="pf-hue" type="range" min="-3.14" max="3.14" step="0.01" value="${p.hue}"><div class="hue-track"></div></div>
-      </div>
-      <div class="field"><span class="lbl">Asteroid belt</span>
-        <div class="seg" id="pf-belt">${['on', 'off'].map((v) => `<button type="button" data-v="${v}">${v === 'on' ? 'Belt of rocks' : 'None'}</button>`).join('')}</div>
-      </div>
+      <div class="pf-world-head"><span class="lbl">The world</span>
+        <button type="button" class="fg-btn" id="pf-random"><i class="dice"></i>Random planet</button>
+        <button type="button" class="fg-btn" id="pf-reset">Reset look</button></div>
+      <div class="pf-world" id="pf-fields"></div>
+      <div class="pf-world" id="pf-moons"></div>
       ${actions('Cancel', editing ? 'Save changes' : 'Chart planet', { type: 'submit' })}
     </form>`,
   });
 
-  modal.querySelectorAll('.biome').forEach((b) =>
-    b.addEventListener('click', () => {
-      state.type = b.dataset.type;
-      modal.querySelectorAll('.biome').forEach((x) => x.classList.toggle('active', x === b));
-      syncBelt();
-    }),
-  );
-  const syncBelt = () => {
-    const allowed = beltAllowed(getType(state.type));
-    modal.querySelectorAll('#pf-belt button').forEach((x) => {
-      x.disabled = !allowed && x.dataset.v === 'on';
-      x.classList.toggle('active', (x.dataset.v === 'on') === beltOn());
-      x.title = allowed ? '' : 'Ringed worlds already have rings';
+  const draw = () => {
+    renderFields(modal.querySelector('#pf-fields'), PLANET_FIELDS, {
+      ctx: getType(w.type),
+      get: (k) => planetValue(w, k, getType(w.type)),
+      set: (k, v) => {
+        if (k === 'type') {
+          w.type = v;
+          clearTypeOverrides(w);
+          draw();
+          return;
+        }
+        w[k] = v;
+        if (k === 'rings' && v) w.belt = false;
+      },
+      randomGroup: (fields) => {
+        for (const f of fields) if (f.key !== 'type') w[f.key] = randomValue(f, getType(w.type));
+        if (w.rings) w.belt = false;
+      },
     });
+    renderMoons(modal.querySelector('#pf-moons'), w, (moons) => (w.moons = moons));
   };
-  modal.querySelectorAll('#pf-belt button').forEach((b) =>
-    b.addEventListener('click', () => {
-      state.belt = b.dataset.v === 'on';
-      syncBelt();
-    }),
-  );
-  syncBelt();
+  draw();
+  modal.querySelector('#pf-random').addEventListener('click', () => {
+    const r = randomPlanet();
+    for (const k of ['type', ...PLANET_LOOK_KEYS]) w[k] = r[k];
+    if (!modal.querySelector('#pf-name').value.trim()) modal.querySelector('#pf-name').value = r.name;
+    draw();
+  });
+  modal.querySelector('#pf-reset').addEventListener('click', () => {
+    for (const k of PLANET_LOOK_KEYS) delete w[k];
+    draw();
+  });
   modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
   modal.querySelector('#pf-lessons').addEventListener('input', (e) => {
     const done = modal.querySelector('#pf-done');
@@ -325,51 +337,16 @@ export function openPlanetModal(existing = null) {
       name: val('#pf-name').trim() || 'Unnamed',
       course: val('#pf-course').trim() || 'Untitled course',
       lessons: Math.max(1, parseInt(val('#pf-lessons'), 10) || 1),
-      type: state.type,
-      belt: beltOn(),
-      size: parseFloat(val('#pf-size')),
-      hue: parseFloat(val('#pf-hue')),
+      type: w.type,
+      size: w.size ?? 1,
+      hue: w.hue ?? 0,
     };
+    // every look setting, so ones put back to "default" are cleared on the planet too
+    for (const k of PLANET_LOOK_KEYS) if (!(k in data)) data[k] = w[k];
     if (editing) data.completed = parseInt(val('#pf-done'), 10) || 0;
     closeModal();
     if (editing) app.updatePlanet(existing.id, data);
     else app.addPlanet(data);
-  });
-}
-
-export function openGalaxyModal() {
-  const state = { star: Object.keys(STARS)[0], nebula: 'violet' };
-  const modal = openModal({
-    kicker: 'GALAXY > CHART',
-    title: 'New galaxy',
-    body: `
-    <p class="lead">A galaxy groups related course planets around a single star.</p>
-    <form autocomplete="off">
-      <div class="field"><label for="gf-name">Galaxy name</label><input id="gf-name" type="text" maxlength="28" required placeholder="e.g. Advanced Mathematics"></div>
-      <div class="field"><span class="lbl">Star</span><div class="seg" id="gf-star">${Object.entries(STARS)
-        .map(([id, s], i) => `<button type="button" data-v="${id}" class="${i === 0 ? 'active' : ''}"><span style="color:${s.glow}">●</span> ${s.label}</button>`)
-        .join('')}</div></div>
-      <div class="field"><span class="lbl">Nebula</span><div class="seg" id="gf-neb">${Object.entries(NEBULAE)
-        .map(([id, n]) => `<button type="button" data-v="${id}" class="${id === state.nebula ? 'active' : ''}"><span style="color:${n.a};filter:brightness(2.2)">●</span> ${n.label}</button>`)
-        .join('')}</div></div>
-      ${actions('Cancel', 'Create galaxy', { type: 'submit' })}
-    </form>`,
-  });
-  const seg = (sel, key) =>
-    modal.querySelectorAll(`${sel} button`).forEach((b) =>
-      b.addEventListener('click', () => {
-        state[key] = b.dataset.v;
-        modal.querySelectorAll(`${sel} button`).forEach((x) => x.classList.toggle('active', x === b));
-      }),
-    );
-  seg('#gf-star', 'star');
-  seg('#gf-neb', 'nebula');
-  modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
-  modal.querySelector('form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = modal.querySelector('#gf-name').value.trim() || 'Unnamed Galaxy';
-    closeModal();
-    app.createGalaxy({ name, ...state });
   });
 }
 

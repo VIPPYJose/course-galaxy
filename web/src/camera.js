@@ -35,6 +35,7 @@ export class FocusRig {
     this.targetPitch = 0;
     this.targetZoom = 1;
     this.fovOffset = 0; // galaxy warp widens the lens through this
+    this.autoSpin = 0; // rad/s of slow automatic orbit (the Galaxy Forge's 360 degree sky preview)
     this.body = null;
     this.flight = null;
     this.look = new THREE.Vector3();
@@ -47,8 +48,10 @@ export class FocusRig {
   /** Camera pose for a body, including the user's drag and zoom. */
   pose(body, out = { pos: new THREE.Vector3(), look: new THREE.Vector3() }) {
     const P = body.pivot.position;
-    const outward = new THREE.Vector3(P.x, 0, P.z).normalize();
-    if (!Number.isFinite(outward.x)) outward.set(0, 0, 1);
+    const outward = new THREE.Vector3(P.x, 0, P.z);
+    // the star sits at the origin: pick a fixed side to view it from
+    if (outward.lengthSq() < 1e-8) outward.set(0, 0, 1);
+    else outward.normalize();
     const yaw = this.baseYaw + this.userYaw;
     const pitch = THREE.MathUtils.clamp(this.basePitch + this.userPitch, -1.2, 1.35);
     const dir = outward.applyAxisAngle(UP, yaw);
@@ -99,6 +102,7 @@ export class FocusRig {
   update(dt) {
     if (!this.body) return;
     const k = Math.min(1, dt * 6);
+    this.targetYaw += dt * this.autoSpin;
     this.userYaw += (this.targetYaw - this.userYaw) * k;
     this.userPitch += (this.targetPitch - this.userPitch) * k;
     this.zoom += (this.targetZoom - this.zoom) * k;

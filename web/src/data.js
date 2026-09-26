@@ -1,21 +1,29 @@
 // Galaxy / planet data, persistence and change notifications.
 //
 // Shape:
-//   { activeGalaxy, galaxies: [{ id, name, star, nebula, planets: [Planet] }] }
-//   Planet = { id, name, course, type, hue, size, lessons, completed, belt? }
+//   { activeGalaxy, galaxies: [{ id, name, star, nebula, sky?, sun?, system?, planets: [Planet] }] }
+//   Planet = { id, name, course, type, hue, size, lessons, completed, belt?, moons?, ...look }
 //
 // `type` is a planet type from assets/planets.json (terra, jovian, dune, saturn, ...).
-// `belt` turns the ring of asteroids on or off; left out, giant planets get one by default.
+// `star` and `nebula` pick a preset star and sky. Galaxies made in the Galaxy Forge also carry
+// `sky`, `sun` and `system` overrides, and planets any of the look settings in params.js
+// (rings, atmosphere, clouds, moons, tilt, ...). Everything left out follows the defaults, so
+// older saves keep working unchanged.
 // A planet is "saved" when completed === lessons.
 
 // v3: the demo galaxies grew to seven planets each (21 distinct worlds)
 const STORAGE_KEY = 'course-galaxy/v3';
 
+// Sky presets. `sky` holds any other environment settings the preset changes (see params.js).
 export const NEBULAE = {
   violet: { label: 'Violet', a: '#2a1250', b: '#0c1a4a' },
   ember: { label: 'Ember', a: '#4a1210', b: '#2a0c30' },
   teal: { label: 'Teal', a: '#0b3a4a', b: '#10204a' },
   rose: { label: 'Rose', a: '#4a1038', b: '#1a0c40' },
+  emerald: { label: 'Emerald', a: '#0d4028', b: '#08243a', sky: { knots: 1.3, bandColor: '#c8e6dc' } },
+  gold: { label: 'Gold', a: '#4a3208', b: '#3a1408', sky: { core: 1.6, coreColor: '#ffe3b0', dust: 0.95 } },
+  ice: { label: 'Ice', a: '#1a3a5c', b: '#0a1830', sky: { bandColor: '#d4e4ff', coreColor: '#eef4ff', starTemp: 0.5 } },
+  void: { label: 'Void', a: '#10101c', b: '#06060c', sky: { nebula: 0.35, band: 0.45, haze: 0.2, galaxies: 2.2, starCount: 9000 } },
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -127,11 +135,30 @@ class Store extends EventTarget {
     this.emit('galaxy', { id });
   }
 
-  addGalaxy({ name, star = 'star_yellow', nebula = 'violet' }) {
-    const g = { id: uid(), name, star, nebula, planets: [] };
+  /** Add a galaxy. A full galaxy from the Forge keeps its id and planets, so it looks as previewed. */
+  addGalaxy({ id, name, star = 'star_yellow', nebula = 'violet', planets = [], ...rest }) {
+    const taken = !id || this.state.galaxies.some((g) => g.id === id);
+    const g = { ...rest, id: taken ? uid() : id, name, star, nebula, planets: planets.map((p) => ({ ...p, id: p.id ?? uid() })) };
     this.state.galaxies.push(g);
     this.emit('galaxies', { galaxy: g });
     return g;
+  }
+
+  /** Replace a galaxy's settings (and planets) with an edited copy from the Forge. */
+  updateGalaxy(id, data) {
+    const i = this.state.galaxies.findIndex((g) => g.id === id);
+    if (i < 0) return null;
+    const g = { ...data, id, planets: (data.planets ?? []).map((p) => ({ ...p, id: p.id ?? uid() })) };
+    this.state.galaxies[i] = g;
+    this.emit('galaxies', { galaxy: g });
+    return g;
+  }
+
+  removeGalaxy(id) {
+    if (this.state.galaxies.length < 2) return;
+    this.state.galaxies = this.state.galaxies.filter((g) => g.id !== id);
+    if (this.state.activeGalaxy === id) this.state.activeGalaxy = this.state.galaxies[0].id;
+    this.emit('galaxies', { removed: id });
   }
 
   addPlanet(galaxyId, data) {
@@ -160,7 +187,7 @@ class Store extends EventTarget {
     Object.assign(hit.planet, patch);
     hit.planet.lessons = Math.max(1, Math.round(hit.planet.lessons));
     hit.planet.completed = Math.max(0, Math.min(hit.planet.lessons, Math.round(hit.planet.completed)));
-    const visual = ['type', 'hue', 'size', 'belt'].some((k) => before[k] !== hit.planet[k]);
+    const visual = Object.keys(patch).some((k) => !['name', 'course', 'lessons', 'completed'].includes(k) && JSON.stringify(before[k]) !== JSON.stringify(hit.planet[k]));
     this.emit('planet', { galaxy: hit.galaxy, planet: hit.planet, before, visual });
     return hit.planet;
   }
@@ -179,6 +206,7 @@ class Store extends EventTarget {
 }
 
 export const store = new Store();
+export const newId = uid;
 
 export const isSaved = (p) => p.completed >= p.lessons;
 export const progressOf = (p) => (p.lessons ? p.completed / p.lessons : 0);
