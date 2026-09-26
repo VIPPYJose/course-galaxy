@@ -15,7 +15,7 @@ const ORBIT_SPEED = 2.6; // angular speed = ORBIT_SPEED / r^1.5, shared by plane
 const SUN_INTENSITY = 2.1;
 // The photosphere is far brighter than anything it lights: the disc burns out to white-hot at
 // the centre (as in any space photo that has the Sun in frame) and keeps its colour at the limb.
-const STAR_GLOW = 5;
+const STAR_GLOW = 3;
 const UP = new THREE.Vector3(0, 1, 0);
 
 // Orbit lines fade out around their own planet, so the path never slices across its disc.
@@ -96,10 +96,11 @@ export class StarSystem {
     const corona = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: glowTexture(), color: glowColor, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }),
     );
+    corona.material.opacity = 0.6;
     corona.scale.setScalar(STAR_RADIUS * 3.6);
     const outer = corona.clone();
     outer.material = corona.material.clone();
-    outer.material.opacity = 0.16;
+    outer.material.opacity = 0.09;
     outer.scale.setScalar(STAR_RADIUS * 8);
     star.add(corona, outer);
 
