@@ -1,6 +1,7 @@
 // DOM overlay: planet list, galaxy switcher, detail card, prompt bar, modals and toasts.
 import { store, isSaved, progressOf, NEBULAE } from './data.js';
 import { planetTypes, getType, typeSwatch, STARS, starInfo } from './assets.js';
+import { hasBelt, beltAllowed } from './planet.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -255,7 +256,9 @@ export function openPlanetModal(existing = null) {
     lessons: 10,
     completed: 0,
   };
-  const state = { type: getType(p.type).id };
+  // belt: null follows the planet type's default until the user picks ON or OFF
+  const state = { type: getType(p.type).id, belt: p.belt ?? null };
+  const beltOn = () => hasBelt({ belt: state.belt ?? undefined }, getType(state.type));
 
   const modal = openModal({
     kicker: editing ? 'PLANET > EDIT' : 'PLANET > CHART',
@@ -281,6 +284,9 @@ export function openPlanetModal(existing = null) {
         <div class="field"><label for="pf-size">Size</label><input id="pf-size" type="range" min="0.7" max="1.7" step="0.05" value="${p.size}"></div>
         <div class="field"><label for="pf-hue">Colour shift</label><input id="pf-hue" type="range" min="-3.14" max="3.14" step="0.01" value="${p.hue}"><div class="hue-track"></div></div>
       </div>
+      <div class="field"><span class="lbl">Asteroid belt</span>
+        <div class="seg" id="pf-belt">${['on', 'off'].map((v) => `<button type="button" data-v="${v}">${v === 'on' ? 'Belt of rocks' : 'None'}</button>`).join('')}</div>
+      </div>
       ${actions('Cancel', editing ? 'Save changes' : 'Chart planet', { type: 'submit' })}
     </form>`,
   });
@@ -289,8 +295,24 @@ export function openPlanetModal(existing = null) {
     b.addEventListener('click', () => {
       state.type = b.dataset.type;
       modal.querySelectorAll('.biome').forEach((x) => x.classList.toggle('active', x === b));
+      syncBelt();
     }),
   );
+  const syncBelt = () => {
+    const allowed = beltAllowed(getType(state.type));
+    modal.querySelectorAll('#pf-belt button').forEach((x) => {
+      x.disabled = !allowed && x.dataset.v === 'on';
+      x.classList.toggle('active', (x.dataset.v === 'on') === beltOn());
+      x.title = allowed ? '' : 'Ringed worlds already have rings';
+    });
+  };
+  modal.querySelectorAll('#pf-belt button').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.belt = b.dataset.v === 'on';
+      syncBelt();
+    }),
+  );
+  syncBelt();
   modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
   modal.querySelector('#pf-lessons').addEventListener('input', (e) => {
     const done = modal.querySelector('#pf-done');
@@ -304,6 +326,7 @@ export function openPlanetModal(existing = null) {
       course: val('#pf-course').trim() || 'Untitled course',
       lessons: Math.max(1, parseInt(val('#pf-lessons'), 10) || 1),
       type: state.type,
+      belt: beltOn(),
       size: parseFloat(val('#pf-size')),
       hue: parseFloat(val('#pf-hue')),
     };

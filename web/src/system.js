@@ -1,14 +1,42 @@
 // A star system: one star at the origin, course planets on inclined orbits.
 // The planets themselves are the Blender-baked worlds from planet.js.
 import * as THREE from 'three';
-import { Planet, rand } from './planet.js';
+import { Planet, rand, BELT } from './planet.js';
+import { AsteroidBelt } from './asteroids.js';
 import { getType, starInfo, createStarMaterial, glowTexture } from './assets.js';
 
 const STAR_RADIUS = 3.3;
 const FIRST_ORBIT = 34;
 const ORBIT_GAP = 11;
-const WHITE = new THREE.Color('#ffffff');
+// The main belt sits in its own gap partway out, like the one between Mars and Jupiter.
+const BELT_HALF_WIDTH = 4.2;
+const BELT_GAP = BELT_HALF_WIDTH * 2 + 6;
+const ORBIT_SPEED = 2.6; // angular speed = ORBIT_SPEED / r^1.5, shared by planets and rocks
+const SUN_INTENSITY = 2.1;
+// The photosphere is far brighter than anything it lights: the disc burns out to white-hot at
+// the centre (as in any space photo that has the Sun in frame) and keeps its colour at the limb.
+const STAR_GLOW = 5;
 const UP = new THREE.Vector3(0, 1, 0);
+
+// Orbit lines fade out around their own planet, so the path never slices across its disc.
+const ORBIT_VERT = /* glsl */ `
+  varying vec3 vWorldPos;
+  void main() {
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+const ORBIT_FRAG = /* glsl */ `
+  uniform float uOpacity;
+  uniform vec3 uPlanet;
+  uniform float uGap;
+  varying vec3 vWorldPos;
+  void main() {
+    float gap = smoothstep(uGap, uGap * 2.2, distance(vWorldPos, uPlanet));
+    gl_FragColor = vec4(1.0, 1.0, 1.0, uOpacity * gap);
+  }
+`;
 
 export class StarSystem {
   constructor(galaxy, bank) {
@@ -21,12 +49,25 @@ export class StarSystem {
     this.focusId = null;
     this._view = new THREE.Vector3();
     const info = starInfo(galaxy.star);
-    // Lighting shared by every planet. sunDir is set each frame from the camera rig's key light.
+    // Every world is lit from the star's real position, in the star's own colour.
     this.env = {
-      sunDir: new THREE.Vector3(-1, 0.4, 0.6).normalize(),
-      corePos: new THREE.Vector3(),
-      rimColor: new THREE.Color(info.glow).lerp(WHITE, 0.35).multiplyScalar(0.22),
+      starPos: new THREE.Vector3(),
+      sunColor: new THREE.Color(...info.light).multiplyScalar(SUN_INTENSITY),
     };
+    this.belt = new AsteroidBelt({
+      radius: FIRST_ORBIT,
+      width: BELT_HALF_WIDTH,
+      thickness: 0.55,
+      count: 5200,
+      size: [0.03, 0.3],
+      kepler: ORBIT_SPEED,
+      seed: [...galaxy.id].reduce((h, c) => h * 31 + c.charCodeAt(0), 7) >>> 0,
+      sunColor: this.env.sunColor,
+      ambient: new THREE.Color(0.006, 0.007, 0.01),
+    });
+    this.belt.orbitRadius = 0;
+    this.belt.targetOrbit = 0;
+    this.group.add(this.belt.mesh);
   }
 
   async build(onProgress = () => {}) {
@@ -75,17 +116,18 @@ export class StarSystem {
       radius: planet.radius,
       // what the camera frames: the globe, or the whole ring span for ringed worlds
       viewRadius: planet.frameRadius / 1.12,
-      rings: !!planet.rings,
+      // ringed and belted worlds turn their equator toward the resting view (see advance)
+      faceView: !!(planet.rings || planet.belt),
       proxy: planet.proxy,
-      // how far the world reaches from its centre (rings included), for orbit spacing
-      extent: planet.rings ? planet.radius * planet.def.rings.outer : planet.radius,
+      // how far the world reaches from its centre (rings or belt included), for orbit spacing
+      extent: planet.radius * (planet.rings ? planet.def.rings.outer : planet.belt ? BELT.outer : 1),
       orbitRadius: 0,
       targetOrbit: 0,
       phase: rand(data.id, 1) * Math.PI * 2,
       incline: new THREE.Euler((rand(data.id, 2) - 0.5) * 0.09, 0, (rand(data.id, 6) - 0.5) * 0.09),
       orbitLine: null,
       highlight: 0,
-      // ringed worlds lean their rings toward the resting camera, well off-axis so they sit on a diagonal
+      // ringed and belted worlds lean their equator toward the resting camera, well off-axis so they sit on a diagonal
       ringYaw: (rand(data.id, 8) < 0.5 ? -1 : 1) * (0.8 + rand(data.id, 9) * 0.4),
     };
     this.bodies.set(data.id, body);
@@ -112,7 +154,7 @@ export class StarSystem {
     if (!b) return;
     b.data = data;
     b.planet.data = data;
-    if (data.type !== before.type || data.size !== before.size) {
+    if (data.type !== before.type || data.size !== before.size || data.belt !== before.belt) {
       // Rebuild the world in place, keeping its spot on the orbit. It fades in once its maps are in.
       const { phase, orbitRadius } = b;
       const wasHero = b.planet.isHero;
@@ -129,14 +171,22 @@ export class StarSystem {
   /** Assign orbit radii in list order and (re)draw orbit rings. */
   layout(immediate) {
     let r = FIRST_ORBIT;
-    for (const id of this.galaxy.planets.map((p) => p.id)) {
+    const ids = this.galaxy.planets.map((p) => p.id).filter((id) => this.bodies.has(id));
+    const beltAfter = Math.ceil(ids.length / 2) - 1; // -1: an empty system keeps just the belt
+    const placeBelt = () => {
+      this.belt.targetOrbit = r + BELT_GAP / 2 - ORBIT_GAP / 2;
+      if (immediate || !this.belt.orbitRadius) this.belt.orbitRadius = this.belt.targetOrbit;
+      r += BELT_GAP;
+    };
+    if (beltAfter < 0) placeBelt();
+    for (const [i, id] of ids.entries()) {
       const b = this.bodies.get(id);
-      if (!b) continue;
       r += Math.max(0, b.extent - 1) * 2.5;
       b.targetOrbit = r;
       if (immediate || !b.orbitRadius) b.orbitRadius = r;
       r += ORBIT_GAP + Math.max(0, b.extent - 1) * 2.5;
       this.drawOrbit(b);
+      if (i === beltAfter) placeBelt();
     }
   }
 
@@ -153,7 +203,17 @@ export class StarSystem {
     }
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, depthWrite: false }),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uOpacity: { value: 0.16 },
+          uPlanet: { value: b.pivot.position }, // live reference: follows the planet
+          uGap: { value: b.extent * 1.6 },
+        },
+        vertexShader: ORBIT_VERT,
+        fragmentShader: ORBIT_FRAG,
+        transparent: true,
+        depthWrite: false,
+      }),
     );
     line.renderOrder = 1;
     b.orbitLine = line;
@@ -183,13 +243,13 @@ export class StarSystem {
       s.spin.rotation.y += dt * 0.02;
       const pulse = 1 + Math.sin(t * 0.8) * 0.03 + Math.sin(t * 2.3) * 0.015;
       s.corona.scale.setScalar(STAR_RADIUS * 3.6 * pulse);
-      s.mesh.material.color.copy(s.mesh.material.userData.base).multiplyScalar(1.7 + Math.sin(t * 1.3) * 0.1);
+      s.mesh.material.color.copy(s.mesh.material.userData.base).multiplyScalar(STAR_GLOW + Math.sin(t * 1.3) * 0.12);
     }
     for (const b of this.bodies.values()) {
       b.orbitRadius += (b.targetOrbit - b.orbitRadius) * Math.min(1, dt * 2);
-      b.phase += dt * (2.6 / Math.pow(b.orbitRadius, 1.5));
+      b.phase += dt * (ORBIT_SPEED / Math.pow(b.orbitRadius, 1.5));
       this.orbitPosition(b, b.pivot.position);
-      if (b.rings) {
+      if (b.faceView) {
         const d = this._view.set(b.pivot.position.x, 0, b.pivot.position.z).normalize().applyAxisAngle(UP, viewYaw);
         b.planet.tilt.rotation.y = Math.atan2(d.z, -d.x) + b.ringYaw;
       }
@@ -197,8 +257,11 @@ export class StarSystem {
   }
 
   /** Shading, occlusion fades and highlights, once the camera has moved for this frame. */
-  update(dt, camera, sunDir) {
-    this.env.sunDir.copy(sunDir);
+  update(dt, camera) {
+    const belt = this.belt;
+    belt.orbitRadius += (belt.targetOrbit - belt.orbitRadius) * Math.min(1, dt * 2);
+    belt.uniforms.uBeltRadius.value = belt.orbitRadius;
+    belt.update(dt);
     const hero = this.bodies.get(this.focusId)?.planet;
     const heroDist = hero ? camera.position.distanceTo(hero.position) : 1;
     const heroAng = hero ? Math.asin(THREE.MathUtils.clamp(hero.frameRadius / heroDist, 0, 1)) : 0;
@@ -223,7 +286,7 @@ export class StarSystem {
 
       const focused = b.data.id === this.focusId;
       b.highlight += ((focused ? 1 : 0) - b.highlight) * Math.min(1, dt * 3);
-      b.orbitLine.material.opacity = 0.13 + b.highlight * 0.14;
+      b.orbitLine.material.uniforms.uOpacity.value = 0.13 + b.highlight * 0.14;
     }
     this.updateFlashes(dt);
   }
@@ -260,6 +323,7 @@ export class StarSystem {
 
   dispose() {
     for (const id of [...this.bodies.keys()]) this.removePlanet(id);
+    this.belt.dispose();
     for (const f of this.flashes) f.sp.material.dispose();
     if (this.star) {
       this.star.mesh.geometry.dispose();

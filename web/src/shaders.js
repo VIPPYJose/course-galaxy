@@ -59,8 +59,8 @@ uniform sampler2D uRingMap;
 uniform float uHasNormal, uHasSpec, uHasEmissive, uHasClouds, uHasRings;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
-uniform vec3 uCorePos;
-uniform vec3 uRimColor;
+uniform vec3 uAmbient;
+uniform float uHasAtmo;
 uniform vec3 uTint;
 uniform float uSpecStrength, uEmissiveStrength, uEmissiveAlways, uLunar, uNormalStrength;
 uniform float uCloudShift, uCloudShadow;
@@ -118,7 +118,11 @@ void main() {
     }
   }
 
-  vec3 col = albedo * uSunColor * diff * shadow;
+  // Sunlight grazing the terminator travels a long path through the air and reddens
+  // (the warm band seen in ISS photos of Earth's day/night line).
+  vec3 sunLight = uSunColor * mix(vec3(1.0), mix(vec3(1.0, 0.5, 0.26), vec3(1.0), smoothstep(0.0, 0.28, ndlG)), uHasAtmo);
+
+  vec3 col = albedo * sunLight * diff * shadow;
 
   // sun glint on water
   if (uHasSpec > 0.5) {
@@ -130,9 +134,8 @@ void main() {
     col += uSunColor * sm * glint * (0.35 + fres) * smoothstep(0.0, 0.2, ndlG) * shadow * (1.0 - cloud);
   }
 
-  // back-light from the galactic core (subtle rim)
-  vec3 Rdir = normalize(uCorePos - C);
-  col += albedo * uRimColor * max(dot(N, Rdir), 0.0) * (1.0 - smoothstep(0.0, 0.3, ndlG) * 0.6);
+  // faint starlight / nebula fill so the night side is not a pure hole in the sky
+  col += albedo * uAmbient;
 
   // night lights / lava glow
   if (uHasEmissive > 0.5) {
@@ -154,8 +157,7 @@ export const cloudFrag = /* glsl */ `
 uniform sampler2D uCloudMap;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
-uniform vec3 uCorePos;
-uniform vec3 uRimColor;
+uniform vec3 uAmbient;
 uniform float uOpacity;
 uniform float uFade;
 uniform vec3 uCloudColor;
@@ -165,14 +167,13 @@ varying vec3 vNormalW;
 varying vec3 vCenter;
 void main() {
   float d = texture2D(uCloudMap, vUv).r;
-  vec3 C = vCenter;
   vec3 N = normalize(vNormalW);
   vec3 L = normalize(uSunDir);
   float ndl = dot(N, L);
   float lit = smoothstep(-0.12, 0.2, ndl) * (0.3 + 0.7 * max(ndl, 0.0));
   vec3 tint = mix(vec3(1.0, 0.55, 0.32), vec3(1.0), smoothstep(0.02, 0.35, ndl));
   vec3 col = uCloudColor * uSunColor * lit * tint;
-  col += uCloudColor * uRimColor * max(dot(N, normalize(uCorePos - C)), 0.0) * 0.8;
+  col += uCloudColor * uAmbient;
   float a = clamp(d * uOpacity, 0.0, 1.0) * uFade;
   gl_FragColor = vec4(col * a, a);
 }

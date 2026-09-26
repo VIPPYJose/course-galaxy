@@ -2,9 +2,10 @@
 //
 // Shape:
 //   { activeGalaxy, galaxies: [{ id, name, star, nebula, planets: [Planet] }] }
-//   Planet = { id, name, course, type, hue, size, lessons, completed }
+//   Planet = { id, name, course, type, hue, size, lessons, completed, belt? }
 //
 // `type` is a planet type from assets/planets.json (terra, jovian, dune, saturn, ...).
+// `belt` turns the ring of asteroids on or off; left out, giant planets get one by default.
 // A planet is "saved" when completed === lessons.
 
 const STORAGE_KEY = 'course-galaxy/v2';
@@ -150,7 +151,7 @@ class Store extends EventTarget {
     Object.assign(hit.planet, patch);
     hit.planet.lessons = Math.max(1, Math.round(hit.planet.lessons));
     hit.planet.completed = Math.max(0, Math.min(hit.planet.lessons, Math.round(hit.planet.completed)));
-    const visual = ['type', 'hue', 'size'].some((k) => before[k] !== hit.planet[k]);
+    const visual = ['type', 'hue', 'size', 'belt'].some((k) => before[k] !== hit.planet[k]);
     this.emit('planet', { galaxy: hit.galaxy, planet: hit.planet, before, visual });
     return hit.planet;
   }

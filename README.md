@@ -38,7 +38,7 @@ right, the galaxy switcher top-centre and a key-prompt bar bottom-right. Every p
 | Orbit / zoom the focused planet | Drag; scroll or pinch to zoom. The camera only moves when you drag or scroll. |
 | Back to the previous planet | `B` |
 | Launch the course | `Enter` |
-| New / edit / remove planet | `N` / `R` / `X`. Pick a Blender planet type, size and colour shift. |
+| New / edit / remove planet | `N` / `R` / `X`. Pick a Blender planet type, size, colour shift and whether it has an asteroid belt. |
 | Switch galaxy | `Q` / `E` or the bumpers beside the galaxy name (warp transition). Click the name to list galaxies or create one. |
 
 Switching planets flies a cinematic arc: the camera sweeps around the star, lifts over the orbital
@@ -73,8 +73,8 @@ CourseGalaxy.setProgress(planetId, lessonsCompleted);
 
 The full API is on `window.CourseGalaxy`: `getState`, `focus`, `switchGalaxy`, `addGalaxy`,
 `addPlanet`, `updatePlanet`, `removePlanet`, `setProgress` and `reset`. A planet is
-`{ id, name, course, type, hue, size, lessons, completed }`, where `type` is a planet type from
-`web/assets/planets.json`. State persists to `localStorage` in `web/src/data.js`; swap that for your
+`{ id, name, course, type, hue, size, lessons, completed, belt }`, where `type` is a planet type from
+`web/assets/planets.json` and `belt` (optional) turns the ring of asteroids on or off. State persists to `localStorage` in `web/src/data.js`; swap that for your
 backend when you wire it up.
 
 ### Web code map (`web/src`)
@@ -83,7 +83,8 @@ backend when you wire it up.
 |---|---|
 | `main.js` | Renderer, bloom, app state, picking, floating labels, galaxy warp, public API |
 | `camera.js` | Focus rig: drag/zoom navigation, the fly-between-planets arc, and the key light |
-| `system.js` | A star system: the star, orbits and layout, occlusion fades, spawn flashes |
+| `system.js` | A star system: the star, orbits and layout, the main asteroid belt, occlusion fades, spawn flashes |
+| `asteroids.js` | Asteroid belts of individual tumbling rocks (one instanced draw call per belt) |
 | `planet.js` | One planet: surface, cloud layer, atmosphere and ring meshes built from the baked maps |
 | `shaders.js` | GLSL: surface (normal map, ocean glint, city lights, cloud and ring shadows), ray-marched Rayleigh/Mie atmosphere, rings |
 | `assets.js` | Planet-type manifest, the stars, star material (limb darkening), glow sprite |
@@ -91,10 +92,35 @@ backend when you wire it up.
 | `data.js` | Galaxies → planets data model, persistence, change events |
 | `ui.js` | Planet list, detail card, galaxy switcher, prompt bar, modals, keyboard, toasts |
 
-**How a planet is lit.** The "sun" key light is anchored to the planet's resting camera framing
-(upper left, slightly in front), so every hero is lit the same dramatic way; drag around it and you
-see the night side. The star adds a rim light tinted by its colour. Ringed worlds turn their axial
-tilt toward the resting view so their rings are seen open rather than edge-on.
+**How a planet is lit.** Every world is lit from where its star actually is, in the star's own
+colour (white for a G star like the Sun, orange for a red dwarf, blue-white for a blue giant). So
+each planet shows its true phase, and background worlds show theirs. The resting camera sits at a
+~70 degree phase angle (star, planet, camera): most of the disc is in daylight with a long
+terminator, and the star is off to the side. Drag round toward the star and the planet becomes a
+crescent, with its atmosphere glowing around the limb. Other details:
+
+- **Terminator:** sunlight grazing the terminator is reddened by its long path through the air.
+- **Night side:** it gets only a faint starlight fill, so city lights and lava show.
+- **Star:** limb-darkened with the linear law measured on SDO images (u ≈ 0.65), and bright enough
+  to burn out to white at the centre, as it does in space photos.
+- **Rings and belts:** ringed and belted worlds turn their axial tilt toward the resting view, so
+  the rings or belt are seen open rather than edge-on. The planet's shadow falls across both.
+
+**Asteroid belts.** Giant planets (Jovian, Azure) carry a belt of rocks by default, like
+BlenderPlanet's gas giants; any non-ringed planet can have one. Each system also has a main belt
+in its own gap between the inner and outer planets. The rocks are lumpy, low-poly "potatoes" in
+charcoal C-type and brownish S-type colours. They orbit at Kepler speeds (inner rocks overtake
+outer ones), tumble, and are shaded flat from the star.
+
+References used for the lighting and belts:
+[phase angle (Planetary Society)](https://www.planetary.org/articles/2179),
+[Cassini crescent Tethys](https://science.nasa.gov/resource/tethys-crescent/),
+[crescent Rhea](https://www.jpl.nasa.gov/images/pia14647-crescent-rhea/),
+[Saturn's unlit rings at high phase](https://www.jpl.nasa.gov/images/pia09875-high-phase-rings/),
+[Earth's limb from the ISS](https://earthobservatory.nasa.gov/images/150240/earths-limb-with-a-crescent-moon),
+[sunset from the ISS](https://earthobservatory.nasa.gov/images/44267/sunset-from-the-international-space-station),
+[solar limb darkening from SDO](https://ui.adsabs.harvard.edu/abs/2017JASS...34...99M/abstract),
+[C-type asteroids](https://nineplanets.org/c-type-asteroids/).
 
 ## Blender pipeline (`blender/`)
 

@@ -28,10 +28,12 @@ export function typeSwatch(def) {
 }
 
 // The star at the centre of each galaxy. Albedo textures are baked by BlenderPlanet's generator.
+// `light` is the (linear) colour of its sunlight, from its blackbody temperature: a G star like
+// the Sun is essentially white in space, an M dwarf is orange, a B giant blue-white.
 export const STARS = {
-  star_yellow: { label: 'Yellow Star', glow: '#ffb347', albedo: 'assets/stars/star_yellow_albedo.jpg' },
-  star_red: { label: 'Red Dwarf', glow: '#ff4a2a', albedo: 'assets/stars/star_red_albedo.jpg' },
-  star_blue: { label: 'Blue Giant', glow: '#7fb2ff', albedo: 'assets/stars/star_blue_albedo.jpg' },
+  star_yellow: { label: 'Yellow Star', glow: '#ffb347', light: [1.0, 0.96, 0.9], albedo: 'assets/stars/star_yellow_albedo.jpg' },
+  star_red: { label: 'Red Dwarf', glow: '#ff4a2a', light: [1.0, 0.66, 0.42], albedo: 'assets/stars/star_red_albedo.jpg' },
+  star_blue: { label: 'Blue Giant', glow: '#7fb2ff', light: [0.78, 0.86, 1.0], albedo: 'assets/stars/star_blue_albedo.jpg' },
 };
 
 export const starInfo = (id) => STARS[id] ?? STARS.star_yellow;
@@ -40,7 +42,8 @@ export const CLAIM_COLOR = new THREE.Color('#ffb13b');
 
 /**
  * Star material: the baked photosphere texture plus limb darkening, which is what makes a
- * real star read as a sphere. Without a texture it falls back to the glow colour.
+ * real star read as a sphere. Linear law I(mu) = 1 - u(1 - mu) with u ~ 0.65, the value
+ * measured on SDO full-disc images of the Sun. Without a texture it falls back to the glow colour.
  */
 export function createStarMaterial(glow, map) {
   const mat = new THREE.MeshBasicMaterial({ map });
@@ -61,10 +64,10 @@ export function createStarMaterial(glow, map) {
         '#include <color_fragment>',
         `#include <color_fragment>
         float mu = clamp(dot(normalize(vNrmV), normalize(-vPosV)), 0.0, 1.0);
-        diffuseColor.rgb *= 0.42 + 0.58 * pow(mu, 0.55);`,
+        diffuseColor.rgb *= 1.0 - 0.65 * (1.0 - mu);`,
       );
   };
-  mat.customProgramCacheKey = () => 'star-limb-v1';
+  mat.customProgramCacheKey = () => 'star-limb-v2';
   return mat;
 }
 

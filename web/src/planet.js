@@ -2,12 +2,26 @@ import * as THREE from 'three';
 import {
   surfaceVert, surfaceFrag, cloudFrag, atmoVert, atmoFrag, ringVert, ringFrag,
 } from './shaders.js';
+import { AsteroidBelt } from './asteroids.js';
 
 // Base radius (world units) per planet type; the planet's size slider scales it.
 export const TYPE_RADIUS = {
   terra: 1.0, dune: 0.82, jovian: 2.0, saturn: 1.55, glacier: 0.72,
   inferno: 0.9, neptune: 1.45, luna: 0.58,
 };
+
+// Giant planets carry a belt of rocks by default (BlenderPlanet's gas giants did). Worlds with
+// real rings never get one: the two would overlap.
+const BELT_TYPES = new Set(['jovian', 'neptune']);
+export const BELT = { inner: 1.45, outer: 2.05 };
+
+export function beltAllowed(def) {
+  return !def.rings;
+}
+
+export function hasBelt(data, def) {
+  return beltAllowed(def) && (data.belt ?? BELT_TYPES.has(def.id));
+}
 
 // Deterministic 0..1 random from a string, so a planet keeps its tilt, spin and orbit phase.
 export function rand(str, salt = 0) {
@@ -94,10 +108,10 @@ export class Planet {
     this.hue = { value: data.hue ?? 0 };
     const atmoColor = new THREE.Vector3(...(def.atmo?.color || [0.5, 0.7, 1]));
     this.sharedUniforms = {
+      // Set every frame from the star: the direction from this planet to the star, and its light.
       uSunDir: { value: new THREE.Vector3(1, 0, 0) },
       uSunColor: { value: new THREE.Color(1, 0.97, 0.92).multiplyScalar(2.1) },
-      uCorePos: { value: new THREE.Vector3() },
-      uRimColor: { value: new THREE.Color(1.0, 0.72, 0.45).multiplyScalar(0.22) },
+      uAmbient: { value: new THREE.Color(0.006, 0.007, 0.01) },
       uFade: { value: 0 },
     };
     const S = this.sharedUniforms;
@@ -130,6 +144,7 @@ export class Planet {
       uRingOuter: { value: def.rings?.outer ?? 0 },
       uHover: { value: 0 },
       uAtmoColor: { value: atmoColor },
+      uHasAtmo: { value: def.atmo && def.atmo.thickness >= 0.04 ? 1 : 0 },
     };
     this.surface = new THREE.Mesh(
       new THREE.SphereGeometry(1, 128, 64),
@@ -223,8 +238,28 @@ export class Planet {
       this.tilt.add(this.rings);
     }
 
+    // ---------------------------------------------------------------- rock belt
+    this.belt = null;
+    if (hasBelt(data, def)) {
+      const R = this.radius;
+      this.belt = new AsteroidBelt({
+        radius: R * (BELT.inner + BELT.outer) / 2,
+        width: R * (BELT.outer - BELT.inner) / 2,
+        thickness: R * 0.018,
+        count: 1800,
+        size: [R * 0.005, R * 0.036],
+        kepler: 0.09 * Math.pow(R * BELT.inner, 1.5),
+        seed: Math.floor(rand(data.id, 11) * 1e6),
+        sunColor: S.uSunColor.value,
+        ambient: S.uAmbient.value,
+      });
+      this.belt.uniforms.uShadowRadius.value = R;
+      this.tilt.add(this.belt.mesh);
+    }
+
     // framing radius: what has to fit on screen when this planet is the hero
-    this.frameRadius = this.radius * (def.rings ? def.rings.outer * 0.78 : 1.12);
+    const reach = def.rings ? def.rings.outer : this.belt ? BELT.outer : 0;
+    this.frameRadius = this.radius * (reach ? reach * 0.78 : 1.12);
     this.hiResRequested = false;
 
     // Invisible proxy that makes small, distant planets easy to click (follows the grow scale).
@@ -262,9 +297,9 @@ export class Planet {
     const f = easeOutCubic(this.fade) * this.visibility;
     this.sharedUniforms.uFade.value = f;
     this.surfaceUniforms.uHover.value = this.hover * 0.6;
-    this.sharedUniforms.uSunDir.value.copy(env.sunDir);
-    this.sharedUniforms.uCorePos.value.copy(env.corePos);
-    this.sharedUniforms.uRimColor.value.copy(env.rimColor);
+    // Sunlight comes from wherever the star actually is, so each world shows its true phase.
+    this.sharedUniforms.uSunDir.value.subVectors(env.starPos, this.group.position).normalize();
+    this.sharedUniforms.uSunColor.value.copy(env.sunColor);
     const grow = 0.55 + 0.45 * easeOutBack(this.fade);
     this.group.scale.setScalar(grow);
 
@@ -286,6 +321,14 @@ export class Planet {
       this.ringUniforms.uRp.value = this.radius * grow;
     }
     this.surfaceUniforms.uRadius.value = this.radius * grow;
+    if (this.belt) {
+      const u = this.belt.uniforms;
+      this.belt.update(dt);
+      u.uSunPos.value.copy(env.starPos);
+      u.uShadowCenter.value.copy(this.group.position);
+      u.uShadowRadius.value = this.radius * grow;
+      u.uFade.value = f;
+    }
   }
 
   dispose() {

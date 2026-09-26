@@ -21,7 +21,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// Exposure and bloom threshold are tuned for the Blender-baked planets (HDR key light ~2.1).
+// Exposure and bloom threshold are tuned for the Blender-baked planets (HDR sunlight ~2.1).
 renderer.toneMappingExposure = 1.0;
 const bank = new TextureBank(renderer);
 
@@ -377,7 +377,7 @@ function tick(dt) {
   const t = elapsed;
   app.system?.advance(dt, rig.baseYaw);
   rig.update(dt);
-  app.system?.update(dt, camera, rig.light);
+  app.system?.update(dt, camera);
   nebula.position.copy(camera.position);
   stars.position.copy(camera.position);
   nebula.material.uniforms.uTime.value = t;
@@ -430,4 +430,8 @@ window.CourseGalaxy = {
   await app.switchGalaxy(store.galaxy.id, { initial: true });
   ui.setLoading(1, true);
   frame();
-})();
+})().catch((err) => {
+  console.error(err);
+  const title = document.querySelector('.loading-title');
+  if (title) title.textContent = 'COULD NOT START. SERVE THIS FOLDER OVER HTTP (SEE README).';
+});
