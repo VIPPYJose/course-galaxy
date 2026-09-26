@@ -1,8 +1,8 @@
 """The full course galaxy as a Blender scene.
 
-Mirrors the web app exactly: the spiral galaxy particles and the planet orbits are
-produced by 1:1 Python ports of the seeded generators in web/src/backdrop.js and
-web/src/store.js, so the Blender render and the browser show the same galaxy.
+The spiral galaxy particles and the planet orbits are 1:1 Python ports of the seeded
+generators from the first version of the web page (web/src/backdrop.js and web/src/store.js,
+see git history). The page now shows each galaxy as a star system instead.
 Web space is Y-up; Blender is Z-up: blender(x, y, z) = web(x, -z, y).
 """
 import bpy
@@ -32,7 +32,7 @@ STYLES = {
                   glow=(1.0, 0.56, 0.36)),
 }
 
-# The demo galaxy from web/src/store.js (title, type, size)
+# The original web demo galaxy (title, type, size)
 DEMO_COURSES = [
     ('Foundations of Programming', 'terra', 'm'), ('Data Structures', 'dune', 'm'),
     ('Algorithms', 'jovian', 'l'), ('Databases', 'glacier', 'm'), ('System Design', 'saturn', 'l'),

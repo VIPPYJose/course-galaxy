@@ -1,356 +1,407 @@
-import { courseStatus } from './galaxy-view.js';
-import { GALAXY_STYLES } from './backdrop.js';
+// DOM overlay: planet list, galaxy switcher, detail card, prompt bar, modals and toasts.
+import { store, isSaved, progressOf, NEBULAE } from './data.js';
+import { planetTypes, getType, typeSwatch, STARS, starInfo } from './assets.js';
 
-const STATUS_TEXT = {
-  saved: 'Planet saved',
-  active: 'Rescue in progress',
-  idle: 'Awaiting rescue',
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+let app = null;
+
+export function initUI(appRef) {
+  app = appRef;
+
+  $('#galaxy-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleGalaxyMenu();
+  });
+  $('#galaxy-prev').addEventListener('click', () => cycleGalaxy(-1));
+  $('#galaxy-next').addEventListener('click', () => cycleGalaxy(1));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.galaxy-switch')) toggleGalaxyMenu(false);
+  });
+  $('#launch').addEventListener('click', () => app.launch());
+  $('#back').addEventListener('click', () => app.back());
+  $('#new-planet').addEventListener('click', () => openPlanetModal());
+  $('#edit-planet').addEventListener('click', editFocused);
+  $('#delete-planet').addEventListener('click', removeFocused);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      toggleGalaxyMenu(false);
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.querySelector('.backdrop') || e.target.closest('input, textarea')) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (k === 'ArrowRight' || k === 'd' || k === 'ArrowDown') app.cycle(1);
+    else if (k === 'ArrowLeft' || k === 'a' || k === 'ArrowUp') app.cycle(-1);
+    else if (k === 'Enter') app.launch();
+    else if (k === 'n') openPlanetModal();
+    else if (k === 'r') editFocused();
+    else if (k === 'x' || k === 'Delete') removeFocused();
+    else if (k === 'b') app.back();
+    else if (k === 'q') cycleGalaxy(-1);
+    else if (k === 'e') cycleGalaxy(1);
+    else return;
+    e.preventDefault();
+  });
+
+  setTimeout(() => ($('#hint').style.opacity = '0'), 9000);
+}
+
+function editFocused() {
+  const p = app.focusedPlanet();
+  if (p) openPlanetModal(p);
+}
+
+function removeFocused() {
+  const p = app.focusedPlanet();
+  if (!p) return;
+  confirmModal({
+    kicker: 'REMOVE PLANET',
+    title: `Remove ${p.name}?`,
+    body: `The planet for <strong>${esc(p.course)}</strong> will leave this galaxy. Course progress stored on it is lost.`,
+    confirm: 'Remove',
+    danger: true,
+  }).then((ok) => ok && app.removePlanet(p.id));
+}
+
+function cycleGalaxy(dir) {
+  const list = store.state.galaxies;
+  if (list.length < 2) return;
+  const i = list.findIndex((g) => g.id === store.galaxy.id);
+  toggleGalaxyMenu(false);
+  app.switchGalaxy(list[(i + dir + list.length) % list.length].id);
+}
+
+// --------------------------------------------------------------------------- //
+//  Panels
+// --------------------------------------------------------------------------- //
+
+export function renderAll() {
+  renderHeader();
+  renderPlanetList();
+  renderInfo();
+  renderGalaxyMenu();
+}
+
+function renderHeader() {
+  const g = store.galaxy;
+  const all = store.state.galaxies;
+  const star = starInfo(g.star);
+  $('#galaxy-name').textContent = g.name;
+  $('#galaxy-count').textContent = `SYSTEM ${all.findIndex((x) => x.id === g.id) + 1}/${all.length}`;
+  $('#galaxy-star').textContent = star.label;
+  const multi = all.length > 1;
+  $('#galaxy-prev').style.visibility = multi ? 'visible' : 'hidden';
+  $('#galaxy-next').style.visibility = multi ? 'visible' : 'hidden';
+}
+
+function renderTotals() {
+  const planets = store.galaxy.planets;
+  const done = planets.reduce((s, p) => s + Math.min(p.completed, p.lessons), 0);
+  const total = planets.reduce((s, p) => s + p.lessons, 0);
+  $('#sectors-total').textContent = `${done}/${total}`;
+  $('#foot-planets').textContent = String(planets.length);
+  $('#foot-saved').textContent = `${planets.filter(isSaved).length}/${planets.length}`;
+}
+
+export function renderPlanetList() {
+  const list = $('#planet-list');
+  const planets = store.galaxy.planets;
+  list.innerHTML = planets
+    .map((p) => {
+      const t = getType(p.type);
+      const saved = isSaved(p);
+      const val = saved ? '<span class="saved">SAVED</span>' : `${Math.round(progressOf(p) * 100)}%`;
+      return `<li><button data-id="${p.id}" class="${p.id === app.focusId ? 'active' : ''}${saved ? ' is-saved' : ''}" title="${esc(p.course)}">
+        <span class="name"><i class="swatch" style="background:${typeSwatch(t)}"></i><span>${esc(p.name)}</span></span>
+        <span class="val">${val}</span></button></li>`;
+    })
+    .join('');
+  if (!planets.length) list.innerHTML = '<li class="empty">NO PLANETS CHARTED</li>';
+  list.querySelectorAll('button').forEach((btn) => btn.addEventListener('click', () => app.focus(btn.dataset.id)));
+  list.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  renderTotals();
+}
+
+const set = (id, text, cls = '') => {
+  const el = $(id);
+  el.textContent = text;
+  el.className = `v ${cls}`.trim();
 };
 
-const $ = (sel, root = document) => root.querySelector(sel);
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[c]);
+export function renderInfo() {
+  const p = app.focusedPlanet();
+  const info = $('#info');
+  const has = !!p;
+  for (const id of ['#edit-planet', '#delete-planet', '#launch']) $(id).disabled = !has;
+  renderTotals();
+  if (!has) {
+    info.classList.remove('epic');
+    $('#info-name').textContent = store.galaxy.name;
+    $('#info-type').textContent = 'EMPTY SYSTEM';
+    $('#info-rarity').textContent = '';
+    for (const id of ['#st-sectors', '#st-progress', '#st-size', '#st-type', '#st-atmo', '#st-left', '#st-status', '#st-done', '#st-lessons']) set(id, '—');
+    $('#info-course').textContent = 'An empty system. Add a planet for your first course.';
+    $('#progress-fill').style.width = '0';
+    $('#progress-label').textContent = '';
+    return;
+  }
+  const t = getType(p.type);
+  const saved = isSaved(p);
+  const pct = Math.round(progressOf(p) * 100);
+  info.classList.toggle('epic', saved);
+  $('#info-name').textContent = p.name;
+  $('#info-type').textContent = t.kind;
+  $('#info-rarity').textContent = saved ? '✦ ✦' : '';
+  set('#st-sectors', `${p.completed}/${p.lessons}`);
+  set('#st-progress', `${pct}%`, saved ? 'good' : '');
+  set('#st-size', (p.size ?? 1).toFixed(2));
+  set('#st-type', t.name);
+  set('#st-atmo', !t.atmo ? 'NONE' : t.atmo.thickness >= 0.06 ? 'DENSE' : 'THIN');
+  set('#st-left', String(p.lessons - p.completed));
+  set('#st-status', saved ? 'SAVED' : p.completed ? 'CLAIMING' : 'UNCHARTED', saved ? 'good' : '');
+  set('#st-done', String(p.completed));
+  set('#st-lessons', String(p.lessons));
+  $('#info-course').textContent = p.course;
+  $('#progress-fill').style.width = `${pct}%`;
+  const label = $('#progress-label');
+  label.classList.toggle('saved', saved);
+  label.textContent = saved ? 'Planet saved' : `${pct}% secured`;
+  info.dataset.planet = p.id;
 }
 
-function ring(progress, status) {
-  const r = 25;
-  const c = 2 * Math.PI * r;
-  const p = status === 'saved' ? 1 : Math.max(0, Math.min(1, progress));
-  return `<svg class="ring" viewBox="0 0 56 56" aria-hidden="true">
-    <circle cx="28" cy="28" r="${r}" class="track"/>
-    <circle cx="28" cy="28" r="${r}" class="fill" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}"/>
-  </svg>`;
+function renderGalaxyMenu() {
+  const menu = $('#galaxy-menu');
+  menu.innerHTML =
+    '<div class="dd-head"><span>.. &gt; GALAXIES</span><span>SAVED</span></div>' +
+    store.state.galaxies
+      .map((g) => {
+        const star = starInfo(g.star);
+        const saved = g.planets.filter(isSaved).length;
+        return `<button data-id="${g.id}" class="${g.id === store.galaxy.id ? 'active' : ''}">
+          <span class="star-dot" style="background:${star.glow};color:${star.glow}"></span>
+          ${esc(g.name)}<span class="meta">${saved}/${g.planets.length}</span></button>`;
+      })
+      .join('') +
+    '<button class="new" data-new="1">+ NEW GALAXY</button>';
+  menu.querySelectorAll('button[data-id]').forEach((b) =>
+    b.addEventListener('click', () => {
+      toggleGalaxyMenu(false);
+      app.switchGalaxy(b.dataset.id);
+    }),
+  );
+  menu.querySelector('[data-new]').addEventListener('click', () => {
+    toggleGalaxyMenu(false);
+    openGalaxyModal();
+  });
 }
 
-export class UI {
-  constructor({ store, view, manifest }) {
-    this.store = store;
-    this.view = view;
-    this.types = manifest.planets;
-    this.typeById = new Map(this.types.map((t) => [t.id, t]));
-    this.onLaunch = null;
-    this.current = null;
+function toggleGalaxyMenu(force) {
+  const menu = $('#galaxy-menu');
+  const open = force ?? menu.hidden;
+  menu.hidden = !open;
+  $('#galaxy-toggle').setAttribute('aria-expanded', String(open));
+}
 
-    this.el = {
-      panel: $('#coursePanel'),
-      index: $('#cIndex'),
-      type: $('#cType'),
-      title: $('#cTitle'),
-      desc: $('#cDesc'),
-      bar: $('#cBar'),
-      status: $('#cStatus'),
-      pct: $('#cPct'),
-      launch: $('#launchBtn'),
-      save: $('#saveBtn'),
-      more: $('#moreBtn'),
-      moreMenu: $('#moreMenu'),
-      dock: $('#dockList'),
-      prev: $('#prevBtn'),
-      next: $('#nextBtn'),
-      galaxyBtn: $('#galaxyBtn'),
-      galaxyName: $('#galaxyName'),
-      galaxyMenu: $('#galaxyMenu'),
-      add: $('#addBtn'),
-      addDialog: $('#addDialog'),
-      addForm: $('#addForm'),
-      typeGrid: $('#typeGrid'),
-      galaxyDialog: $('#galaxyDialog'),
-      galaxyForm: $('#galaxyForm'),
-      styleGrid: $('#styleGrid'),
-      toast: $('#toast'),
-      flash: $('#warpFlash'),
-      loader: $('#loader'),
+// --------------------------------------------------------------------------- //
+//  Modals
+// --------------------------------------------------------------------------- //
+
+const actions = (cancel, confirm, { danger = false, type = 'button', disabled = false } = {}) => `
+  <div class="modal-actions">
+    <button type="button" class="prompt" data-cancel><span class="pl">${esc(cancel)}</span><kbd>ESC</kbd></button>
+    <button type="${type}" class="prompt${danger ? ' danger' : ''}" data-ok ${disabled ? 'disabled' : ''}><span class="pl">${esc(confirm)}</span><kbd>&#8629;</kbd></button>
+  </div>`;
+
+function openModal({ kicker, title, body }) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="backdrop"><div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head"><div class="kicker">${esc(kicker)}</div><h2>${esc(title)}</h2></div>
+    <div class="modal-body">${body}</div></div></div>`;
+  const backdrop = root.querySelector('.backdrop');
+  backdrop.addEventListener('pointerdown', (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+  const modal = root.querySelector('.modal');
+  modal.tabIndex = -1;
+  // Enter runs the ↵ prompt, unless keyboard focus sits on a specific button or field.
+  modal.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.target.closest('button, input')) return;
+    e.preventDefault();
+    const ok = modal.querySelector('[data-ok]');
+    if (ok && !ok.disabled) ok.click();
+  });
+  (root.querySelector('input') ?? modal).focus();
+  return modal;
+}
+
+export function closeModal() {
+  const root = $('#modal-root');
+  root.dispatchEvent(new Event('close'));
+  root.innerHTML = '';
+}
+
+export function openPlanetModal(existing = null) {
+  const types = planetTypes();
+  const editing = !!existing;
+  const p = existing ?? {
+    name: '',
+    course: '',
+    type: types[(Math.random() * types.length) | 0].id,
+    hue: 0,
+    size: 1,
+    lessons: 10,
+    completed: 0,
+  };
+  const state = { type: getType(p.type).id };
+
+  const modal = openModal({
+    kicker: editing ? 'PLANET > EDIT' : 'PLANET > CHART',
+    title: editing ? p.name : 'New planet',
+    body: `
+    <p class="lead">${editing ? 'Tweak the course or the world that represents it.' : 'Every course is a world. Pick a planet type and it will be charted into this galaxy.'}</p>
+    <form id="planet-form" autocomplete="off">
+      <div class="row">
+        <div class="field"><label for="pf-name">Planet name</label><input id="pf-name" type="text" maxlength="24" required value="${esc(p.name)}" placeholder="e.g. Calculon"></div>
+        <div class="field"><label for="pf-lessons">Lessons (sectors)</label><input id="pf-lessons" type="number" min="1" max="200" required value="${p.lessons}"></div>
+      </div>
+      <div class="field"><label for="pf-course">Course</label><input id="pf-course" type="text" maxlength="60" required value="${esc(p.course)}" placeholder="e.g. Calculus II: Integration"></div>
+      ${editing ? `<div class="field"><label for="pf-done">Lessons completed</label><input id="pf-done" type="number" min="0" max="${p.lessons}" value="${p.completed}"></div>` : ''}
+      <div class="field"><span class="lbl">Planet type</span>
+        <div class="biomes">${types
+          .map(
+            (t) => `<button type="button" class="biome ${t.id === state.type ? 'active' : ''}" data-type="${t.id}" title="${esc(t.kind)}">
+              <img class="orb" src="${t.maps.thumb}" alt="" draggable="false">${esc(t.name)}</button>`,
+          )
+          .join('')}</div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="pf-size">Size</label><input id="pf-size" type="range" min="0.7" max="1.7" step="0.05" value="${p.size}"></div>
+        <div class="field"><label for="pf-hue">Colour shift</label><input id="pf-hue" type="range" min="-3.14" max="3.14" step="0.01" value="${p.hue}"><div class="hue-track"></div></div>
+      </div>
+      ${actions('Cancel', editing ? 'Save changes' : 'Chart planet', { type: 'submit' })}
+    </form>`,
+  });
+
+  modal.querySelectorAll('.biome').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.type = b.dataset.type;
+      modal.querySelectorAll('.biome').forEach((x) => x.classList.toggle('active', x === b));
+    }),
+  );
+  modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
+  modal.querySelector('#pf-lessons').addEventListener('input', (e) => {
+    const done = modal.querySelector('#pf-done');
+    if (done) done.max = e.target.value;
+  });
+  modal.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = (id) => modal.querySelector(id)?.value;
+    const data = {
+      name: val('#pf-name').trim() || 'Unnamed',
+      course: val('#pf-course').trim() || 'Untitled course',
+      lessons: Math.max(1, parseInt(val('#pf-lessons'), 10) || 1),
+      type: state.type,
+      size: parseFloat(val('#pf-size')),
+      hue: parseFloat(val('#pf-hue')),
     };
+    if (editing) data.completed = parseInt(val('#pf-done'), 10) || 0;
+    closeModal();
+    if (editing) app.updatePlanet(existing.id, data);
+    else app.addPlanet(data);
+  });
+}
 
-    this._buildTypeGrid();
-    this._buildStyleGrid();
-    this._bind();
-    this.renderGalaxyMenu();
-    this.renderDock();
-  }
+export function openGalaxyModal() {
+  const state = { star: Object.keys(STARS)[0], nebula: 'violet' };
+  const modal = openModal({
+    kicker: 'GALAXY > CHART',
+    title: 'New galaxy',
+    body: `
+    <p class="lead">A galaxy groups related course planets around a single star.</p>
+    <form autocomplete="off">
+      <div class="field"><label for="gf-name">Galaxy name</label><input id="gf-name" type="text" maxlength="28" required placeholder="e.g. Advanced Mathematics"></div>
+      <div class="field"><span class="lbl">Star</span><div class="seg" id="gf-star">${Object.entries(STARS)
+        .map(([id, s], i) => `<button type="button" data-v="${id}" class="${i === 0 ? 'active' : ''}"><span style="color:${s.glow}">●</span> ${s.label}</button>`)
+        .join('')}</div></div>
+      <div class="field"><span class="lbl">Nebula</span><div class="seg" id="gf-neb">${Object.entries(NEBULAE)
+        .map(([id, n]) => `<button type="button" data-v="${id}" class="${id === state.nebula ? 'active' : ''}"><span style="color:${n.a};filter:brightness(2.2)">●</span> ${n.label}</button>`)
+        .join('')}</div></div>
+      ${actions('Cancel', 'Create galaxy', { type: 'submit' })}
+    </form>`,
+  });
+  const seg = (sel, key) =>
+    modal.querySelectorAll(`${sel} button`).forEach((b) =>
+      b.addEventListener('click', () => {
+        state[key] = b.dataset.v;
+        modal.querySelectorAll(`${sel} button`).forEach((x) => x.classList.toggle('active', x === b));
+      }),
+    );
+  seg('#gf-star', 'star');
+  seg('#gf-neb', 'nebula');
+  modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
+  modal.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = modal.querySelector('#gf-name').value.trim() || 'Unnamed Galaxy';
+    closeModal();
+    app.createGalaxy({ name, ...state });
+  });
+}
 
-  // ------------------------------------------------------------------ rendering
-  renderCourse(detail) {
-    const el = this.el;
-    if (!detail) {
-      el.panel.classList.add('empty');
-      el.title.textContent = 'An empty galaxy';
-      el.desc.textContent = 'Chart your first planet to start this journey.';
-      el.index.textContent = '00 / 00';
-      el.type.textContent = 'Uncharted space';
-      return;
-    }
-    el.panel.classList.remove('empty');
-    const { course, index, total, def } = detail;
-    this.current = course;
-    const st = courseStatus(course);
-    const pct = st === 'saved' ? 100 : Math.round(course.progress * 100);
-    el.index.textContent = `${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
-    el.type.textContent = `${def.name}-class · ${def.kind}`;
-    el.title.textContent = course.title;
-    el.desc.textContent = course.description || 'No description yet.';
-    el.bar.style.width = `${pct}%`;
-    el.panel.dataset.status = st;
-    el.status.textContent = STATUS_TEXT[st];
-    el.pct.textContent = `${pct}%`;
-    el.launch.textContent = st === 'idle' ? 'Launch mission' : st === 'saved' ? 'Revisit mission' : 'Resume mission';
-    el.save.textContent = st === 'saved' ? 'Mark as unsaved' : 'Mark as saved';
-    el.panel.classList.remove('swap');
-    void el.panel.offsetWidth; // restart the entrance animation
-    el.panel.classList.add('swap');
-    this._markDock();
-  }
+export function confirmModal({ kicker = 'CONFIRM', title, body, confirm = 'Confirm', danger = false }) {
+  return new Promise((resolve) => {
+    const modal = openModal({ kicker, title, body: `<p class="lead">${body}</p>${actions('Cancel', confirm, { danger })}` });
+    let settled = false;
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      closeModal();
+      resolve(v);
+    };
+    modal.querySelector('[data-cancel]').addEventListener('click', () => done(false));
+    modal.querySelector('[data-ok]').addEventListener('click', () => done(true));
+    $('#modal-root').addEventListener('close', () => done(false), { once: true });
+  });
+}
 
-  renderDock() {
-    const g = this.store.activeGalaxy;
-    const list = this.el.dock;
-    list.innerHTML = g.courses.map((c) => {
-      const t = this.typeById.get(c.type);
-      const st = courseStatus(c);
-      return `<li><button class="dock-item" data-id="${c.id}" data-status="${st}" title="${esc(c.title)}"
-          aria-label="${esc(c.title)} – ${STATUS_TEXT[st]}">
-          ${ring(c.progress, st)}
-          <img src="${t?.maps.thumb || ''}" alt="" loading="lazy" draggable="false">
-        </button></li>`;
-    }).join('');
-    this._markDock();
-  }
+/** Shown when nothing handles the `coursegalaxy:launch` event (standalone demo). */
+export function launchModal(planet) {
+  const saved = isSaved(planet);
+  const modal = openModal({
+    kicker: 'LAUNCHING',
+    title: planet.name,
+    body: `
+    <div class="launch-card">
+      <div class="course">${esc(planet.course)}</div>
+      <div class="demo-note">
+        <strong>Hook up your course player here.</strong> Listen for
+        <code>coursegalaxy:launch</code> on <code>window</code> and call
+        <code>event.preventDefault()</code> to replace this dialog. Report progress with
+        <code>CourseGalaxy.setProgress(id, lessonsDone)</code>.
+      </div>
+    </div>
+    ${actions('Close', saved ? 'Planet saved' : 'Complete a lesson (demo)', { disabled: saved })}`,
+  });
+  modal.querySelector('[data-cancel]').addEventListener('click', closeModal);
+  modal.querySelector('[data-ok]').addEventListener('click', () => {
+    closeModal();
+    app.setProgress(planet.id, planet.completed + 1);
+  });
+}
 
-  _markDock() {
-    const id = this.current?.id;
-    for (const b of this.el.dock.querySelectorAll('.dock-item')) {
-      const on = b.dataset.id === id;
-      b.classList.toggle('active', on);
-      if (on) b.setAttribute('aria-current', 'true');
-      else b.removeAttribute('aria-current');
-    }
-  }
+export function toast(msg, { kicker = 'COURSE UPDATED', sub = store.galaxy?.name } = {}) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<div class="toast-main"><div class="toast-ico"><span></span></div>
+    <div class="toast-text"><div class="toast-kicker">${esc(kicker)}</div><div class="toast-msg">${esc(msg)}</div></div></div>
+    ${sub ? `<div class="toast-sub">${esc(String(sub).toUpperCase())}</div>` : ''}`;
+  $('#toast-root').appendChild(el);
+  setTimeout(() => el.remove(), 3300);
+}
 
-  renderGalaxyMenu() {
-    const g = this.store.activeGalaxy;
-    this.el.galaxyName.textContent = g.name;
-    this.el.galaxyMenu.innerHTML = this.store.galaxies.map((x) => `
-      <button role="menuitemradio" aria-checked="${x.id === g.id}" data-galaxy="${x.id}">
-        <span class="swatch" data-style="${x.style}"></span>
-        <span class="gname">${esc(x.name)}</span>
-        <span class="gcount">${x.courses.length} planets</span>
-      </button>`).join('') + `
-      <hr>
-      <button role="menuitem" data-action="new-galaxy"><span class="plus">+</span> Chart a new galaxy</button>`;
-  }
-
-  _buildTypeGrid() {
-    this.el.typeGrid.innerHTML = this.types.map((t, i) => `
-      <label class="type-card">
-        <input type="radio" name="type" value="${t.id}" ${i === 0 ? 'checked' : ''}>
-        <img src="${t.maps.thumb}" alt="" draggable="false">
-        <span class="tname">${esc(t.name)}</span>
-        <span class="tkind">${esc(t.kind)}</span>
-      </label>`).join('');
-  }
-
-  _buildStyleGrid() {
-    this.el.styleGrid.innerHTML = Object.entries(GALAXY_STYLES).map(([id, s], i) => `
-      <label class="style-card">
-        <input type="radio" name="style" value="${id}" ${i === 0 ? 'checked' : ''}>
-        <span class="swatch big" data-style="${id}"></span>
-        <span class="tname">${esc(s.label)}</span>
-      </label>`).join('');
-  }
-
-  // ------------------------------------------------------------------ behaviour
-  _bind() {
-    const { el, view, store } = this;
-    view.addEventListener('focus', (e) => this.renderCourse(e.detail));
-    view.addEventListener('transition-start', () => el.panel.classList.add('leaving'));
-    view.addEventListener('transition-end', () => el.panel.classList.remove('leaving'));
-    view.addEventListener('warp', () => {
-      el.flash.classList.remove('go');
-      void el.flash.offsetWidth;
-      el.flash.classList.add('go');
-    });
-    view.addEventListener('hero-click', () => {
-      el.panel.classList.remove('pulse');
-      void el.panel.offsetWidth;
-      el.panel.classList.add('pulse');
-    });
-
-    store.subscribe((evt) => {
-      switch (evt.type) {
-        case 'course-added':
-          view.addCourse(evt.course);
-          this.renderDock();
-          this.renderGalaxyMenu();
-          break;
-        case 'course-updated':
-          view.updateCourse(evt.course);
-          this.renderDock();
-          break;
-        case 'course-removed':
-          view.removeCourse(evt.course.id);
-          this.renderDock();
-          this.renderGalaxyMenu();
-          if (!store.activeGalaxy.courses.length) this.renderCourse(null);
-          break;
-        case 'galaxy-changed':
-        case 'galaxy-added':
-        case 'reset':
-          view.setGalaxy(store.activeGalaxy, { warp: true });
-          this.renderGalaxyMenu();
-          this.renderDock();
-          if (!store.activeGalaxy.courses.length) this.renderCourse(null);
-          break;
-        default:
-      }
-    });
-
-    el.prev.addEventListener('click', () => view.prev());
-    el.next.addEventListener('click', () => view.next());
-    el.dock.addEventListener('click', (e) => {
-      const b = e.target.closest('.dock-item');
-      if (b) view.focusCourse(b.dataset.id);
-    });
-    $('#dockAdd').addEventListener('click', () => this.openAdd());
-    el.add.addEventListener('click', () => this.openAdd());
-
-    el.launch.addEventListener('click', () => this.launch());
-    el.save.addEventListener('click', () => {
-      const c = this.current;
-      if (!c) return;
-      const saved = courseStatus(c) !== 'saved';
-      store.updateCourse(c.id, { saved, progress: saved ? 1 : Math.min(c.progress, 0.99) });
-      if (saved) {
-        view.celebrate?.(c.id);
-        this.toast(`“${c.title}” is saved. The planet is safe.`);
-      }
-    });
-
-    // course overflow menu
-    el.more.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._toggleMenu(el.moreMenu, el.more);
-    });
-    el.moreMenu.addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-action]');
-      if (!b || !this.current) return;
-      this._toggleMenu(el.moreMenu, el.more, false);
-      const c = this.current;
-      if (b.dataset.action === 'remove') {
-        if (window.confirm(`Remove the planet “${c.title}” from this galaxy?`)) {
-          store.removeCourse(c.id);
-          this.toast(`Removed “${c.title}”.`);
-        }
-      } else if (b.dataset.action === 'reset-progress') {
-        store.updateCourse(c.id, { saved: false, progress: 0 });
-      } else if (b.dataset.action === 'progress') {
-        const next = Math.min(1, Math.round((c.progress + 0.25) * 100) / 100);
-        store.updateCourse(c.id, { progress: next, saved: next >= 1 });
-      }
-    });
-
-    // galaxy switcher
-    el.galaxyBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._toggleMenu(el.galaxyMenu, el.galaxyBtn);
-    });
-    el.galaxyMenu.addEventListener('click', (e) => {
-      const b = e.target.closest('button');
-      if (!b) return;
-      this._toggleMenu(el.galaxyMenu, el.galaxyBtn, false);
-      if (b.dataset.action === 'new-galaxy') this.openGalaxy();
-      else if (b.dataset.galaxy && b.dataset.galaxy !== store.activeGalaxy.id) store.setActiveGalaxy(b.dataset.galaxy);
-    });
-    document.addEventListener('click', () => {
-      this._toggleMenu(el.galaxyMenu, el.galaxyBtn, false);
-      this._toggleMenu(el.moreMenu, el.more, false);
-    });
-
-    // add-planet dialog
-    $('#surpriseBtn').addEventListener('click', () => {
-      const radios = [...el.typeGrid.querySelectorAll('input')];
-      radios[Math.floor(Math.random() * radios.length)].checked = true;
-      el.typeGrid.querySelector('input:checked').closest('label').scrollIntoView({ block: 'nearest' });
-    });
-    el.addForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const f = new FormData(el.addForm);
-      const title = String(f.get('title') || '').trim();
-      if (!title) return;
-      store.addCourse(store.activeGalaxy.id, {
-        title,
-        description: String(f.get('description') || '').trim(),
-        type: f.get('type'),
-        size: f.get('size') || 'm',
-      });
-      el.addDialog.close();
-      this.toast(`New planet charted: “${title}”`);
-    });
-    for (const d of [el.addDialog, el.galaxyDialog]) {
-      d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
-      d.querySelector('[data-close]').addEventListener('click', () => d.close());
-    }
-
-    el.galaxyForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const f = new FormData(el.galaxyForm);
-      const name = String(f.get('name') || '').trim();
-      if (!name) return;
-      el.galaxyDialog.close();
-      store.addGalaxy({ name, style: f.get('style') });
-      this.toast(`Warping to ${name}…`);
-      setTimeout(() => this.openAdd(), 1900);
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.target.closest('input, textarea, select, dialog[open]')) return;
-      if (e.key === 'ArrowRight') view.next();
-      else if (e.key === 'ArrowLeft') view.prev();
-      else if (e.key === 'Enter' && e.target === document.body) this.launch();
-      else if (e.key.toLowerCase() === 'n' && !e.metaKey && !e.ctrlKey) this.openAdd();
-    });
-  }
-
-  _toggleMenu(menu, btn, force) {
-    const open = force ?? menu.hidden;
-    menu.hidden = !open;
-    btn.setAttribute('aria-expanded', String(open));
-  }
-
-  openAdd() {
-    const { addDialog, addForm } = this.el;
-    addForm.reset();
-    addDialog.showModal();
-    addForm.querySelector('input[name="title"]').focus();
-  }
-
-  openGalaxy() {
-    this.el.galaxyForm.reset();
-    this.el.galaxyDialog.showModal();
-    this.el.galaxyForm.querySelector('input[name="name"]').focus();
-  }
-
-  launch() {
-    const c = this.current;
-    if (!c) return;
-    const evt = new CustomEvent('course-launch', { detail: c, cancelable: true });
-    const proceed = window.dispatchEvent(evt);
-    if (this.onLaunch) this.onLaunch(c);
-    else if (proceed) this.toast(`Launching “${c.title}”… (connect your course player via window.courseGalaxy.onLaunch)`);
-  }
-
-  toast(msg) {
-    const t = this.el.toast;
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
-  }
-
-  hideLoader() {
-    this.el.loader.classList.add('done');
-    setTimeout(() => this.el.loader.remove(), 1200);
-  }
+export function setLoading(frac, done = false) {
+  $('#loading-fill').style.width = `${Math.round(frac * 100)}%`;
+  if (done) $('#loading').classList.add('done');
 }

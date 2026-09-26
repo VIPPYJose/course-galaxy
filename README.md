@@ -1,12 +1,13 @@
 # Course Galaxy
 
-Every course is a planet. The planets orbit a glowing galactic core, and the course you are on
-always sits centred and "up front". Everything else keeps moving in the background, and you fly
-between planets or warp to other galaxies. Completing a course is "saving" its planet.
+Every course is a planet. The planets orbit a star, and the course you are on always sits centred
+and "up front" while the rest of the system keeps moving in the background. You fly between planets
+or warp to other galaxies. Finishing every lesson of a course "saves" its planet.
 
 The planets are made in **Blender**: procedural materials rendered in Cycles, lit by a sun on a
 black background. They are baked to textures that the **web page** (three.js) renders in real time
-with matching lighting, clouds, atmospheres and rings.
+with matching lighting, clouds, atmospheres and rings. The page's HUD, navigation and star-system
+layout come from the BlenderPlanet prototype (a Starfield-style menu layout).
 
 | Blender: hero shot | Blender: the course system inside the galaxy |
 |---|---|
@@ -20,61 +21,87 @@ with matching lighting, clouds, atmospheres and rings.
 python3 serve.py
 ```
 
-Then open http://localhost:5173. Any static file server works; `serve.py` just turns off caching.
-three.js 0.186.1 loads from jsDelivr through the import map in `web/index.html`.
+Then open http://localhost:5173. Any static file server works; `serve.py` just turns off caching
+(`python3 serve.py 8080` or `PORT=8080 python3 serve.py` picks another port).
+three.js 0.186.1 loads from jsDelivr through the import map in `web/index.html`, and the Red Hat
+fonts come from Google Fonts. There is no build step.
 
 **Controls**
 
+The HUD follows Starfield's menu layout: planet list on the left, the focused planet's card on the
+right, the galaxy switcher top-centre and a key-prompt bar bottom-right. Every prompt is also clickable.
+
 | Action | How |
 |---|---|
-| Fly to a planet | Click it, its label, or its icon in the dock |
-| Next / previous planet | ← → keys or the dock arrows; swipe on touch screens |
-| Look around the hero | Drag; scroll to zoom; double-click to reset |
-| Add a planet | "New planet" (or `N`): name, brief, Blender planet type, size |
-| Switch or create a galaxy | Galaxy menu, top left (animated warp) |
-| Launch / save | Course panel buttons; `…` has *log progress*, *reset*, *remove* |
+| Fly to a planet | Click it in the list or in the scene |
+| Next / previous planet | `←` `→` or `A` `D` |
+| Orbit / zoom the focused planet | Drag; scroll or pinch to zoom. The camera only moves when you drag or scroll. |
+| Back to the previous planet | `B` |
+| Launch the course | `Enter` |
+| New / edit / remove planet | `N` / `R` / `X`. Pick a Blender planet type, size and colour shift. |
+| Switch galaxy | `Q` / `E` or the bumpers beside the galaxy name (warp transition). Click the name to list galaxies or create one. |
 
-Data is saved in `localStorage` (key `course-galaxy:v1`). Delete that key to get the demo galaxies back.
+Switching planets flies a cinematic arc: the camera sweeps around the star, lifts over the orbital
+plane mid-flight with a short FOV punch, and the key light swings over to the new planet's framing.
+
+Data is saved in `localStorage` (key `course-galaxy/v2`). Delete that key to get the demo galaxies back.
 
 ## Wiring it into the course platform
 
-`web/src/main.js` exposes a small API as `window.courseGalaxy`:
+The page dispatches cancelable events on `window`. Call `preventDefault()` to take over from the
+built-in behaviour.
+
+| Event | When | Default if not prevented |
+| --- | --- | --- |
+| `coursegalaxy:launch` | Launch pressed | demo dialog with a "complete a lesson" button |
+| `coursegalaxy:back` | Back pressed | fly to the previously focused planet |
+| `coursegalaxy:focus` | a planet became the focus | none |
+| `coursegalaxy:saved` | a planet reached 100% | none (a shockwave plays) |
+| `coursegalaxy:galaxy` | a galaxy finished loading | none |
+
+`event.detail` is `{ planet, galaxy }`.
 
 ```js
-courseGalaxy.onLaunch = (course) => openCoursePlayer(course.id); // replaces the demo toast
-courseGalaxy.setProgress(courseId, 0.6);        // 1.0 marks the planet as saved (gold orbit + burst)
-courseGalaxy.addCourse({ title, description, type: 'terra', size: 'm' });
-courseGalaxy.focus(courseId);                    // fly there
-window.addEventListener('course-launch', (e) => e.detail /* course */);
+window.addEventListener('coursegalaxy:launch', (e) => {
+  e.preventDefault();
+  openCourse(e.detail.planet.id);
+});
+
+// after the learner finishes a lesson:
+CourseGalaxy.setProgress(planetId, lessonsCompleted);
 ```
 
-To keep courses on your backend instead of `localStorage`, swap out `Store` in `web/src/store.js`.
-It is a plain class with `addCourse`, `updateCourse`, `removeCourse`, `addGalaxy` and
-`setActiveGalaxy`; the view and UI only react to its events. Orbits are derived from
-`(slot, galaxy seed)`, so a backend only needs to store `slot` along with the course fields.
+The full API is on `window.CourseGalaxy`: `getState`, `focus`, `switchGalaxy`, `addGalaxy`,
+`addPlanet`, `updatePlanet`, `removePlanet`, `setProgress` and `reset`. A planet is
+`{ id, name, course, type, hue, size, lessons, completed }`, where `type` is a planet type from
+`web/assets/planets.json`. State persists to `localStorage` in `web/src/data.js`; swap that for your
+backend when you wire it up.
 
 ### Web code map (`web/src`)
 
 | File | What it does |
 |---|---|
-| `galaxy-view.js` | Renderer, bloom, the hero camera rig, fly-through transitions, galaxy warp, picking, labels |
+| `main.js` | Renderer, bloom, app state, picking, floating labels, galaxy warp, public API |
+| `camera.js` | Focus rig: drag/zoom navigation, the fly-between-planets arc, and the key light |
+| `system.js` | A star system: the star, orbits and layout, occlusion fades, spawn flashes |
 | `planet.js` | One planet: surface, cloud layer, atmosphere and ring meshes built from the baked maps |
-| `shaders.js` | GLSL: surface (normal map, ocean glint, city lights, cloud and ring shadows), ray-marched Rayleigh/Mie atmosphere, rings, galaxy particles, orbit trails |
-| `backdrop.js` | Seeded spiral galaxy (≈110k stars, star-forming knots, dust lanes), core glow, distant starfield |
-| `store.js` | Galaxies → courses data model, orbit slots, persistence |
-| `ui.js` | Course panel, dock, dialogs, galaxy menu, keyboard, toasts |
+| `shaders.js` | GLSL: surface (normal map, ocean glint, city lights, cloud and ring shadows), ray-marched Rayleigh/Mie atmosphere, rings |
+| `assets.js` | Planet-type manifest, the stars, star material (limb darkening), glow sprite |
+| `background.js` | Milky-Way sky dome with nebulae, plus a matching starfield |
+| `data.js` | Galaxies → planets data model, persistence, change events |
+| `ui.js` | Planet list, detail card, galaxy switcher, prompt bar, modals, keyboard, toasts |
 
-**How the hero shot is framed.** For each hero, the camera picks the angle around the planet that puts
-the most other planets, plus the core, into the background. The "sun" key light is anchored to that
-framing (upper left, slightly in front), so every hero is lit the same dramatic way. The core adds a
-warm rim light from behind. While the camera follows the hero, the rest of the system keeps orbiting.
+**How a planet is lit.** The "sun" key light is anchored to the planet's resting camera framing
+(upper left, slightly in front), so every hero is lit the same dramatic way; drag around it and you
+see the night side. The star adds a rim light tinted by its colour. Ringed worlds turn their axial
+tilt toward the resting view so their rings are seen open rather than edge-on.
 
 ## Blender pipeline (`blender/`)
 
 `galaxy.blend` contains three scenes:
 
-- **Galaxy**: the demo galaxy, built by the same seeded generators as the web page, so the layout
-  matches. It has the spiral disc as a Cycles point cloud, the core glow, the 8 course planets on their
+- **Galaxy**: a demo spiral galaxy built by seeded generators (ported from an earlier version of the
+  web page, which showed the planets inside a spiral galaxy). It has the spiral disc as a Cycles point cloud, the core glow, the 8 course planets on their
   orbits, and two cameras: `GalaxyCam` (hero shot) and `SystemCam` (overview).
 - **Planet Lab**: the planet library, one collection per type (`PT_terra`, `PT_jovian`, …). Each has a
   surface, a cloud shell, a volumetric atmosphere and rings, plus the portrait camera and sun.
@@ -95,7 +122,7 @@ $BL -b --factory-startup -P blender/cli.py -- scene all --samples 160 --res 1920
 | `recipes.py` | Procedural shader recipes: Terra (continents, biomes, ice, city lights, cyclone clouds), Dune (Mars-like: craters, canyons, volcanoes), Glacier (Europa-like lineae), Inferno (lava cracks), Luna (craters with ray systems) |
 | `gasgiant.py` | Gas and ice giants: band colours advected through jets, storms and curl noise (numpy flow simulation), including the red storm, white ovals and festoons |
 | `build.py` | Planet specs (atmosphere, clouds, rings, web parameters), materials, lab scene, baking, normal-map generation, manifest |
-| `galaxy_scene.py` | The Galaxy scene (ports of the web's seeded galaxy and orbit generators) |
+| `galaxy_scene.py` | The Galaxy scene (seeded spiral galaxy and orbit generators) |
 | `nodes.py` | Tiny helper for building node graphs from Python |
 
 **Baked outputs** (`web/assets/planets/<type>/`): `color` (2K, plus a 4K version streamed in for the
@@ -111,4 +138,4 @@ matches three.js `SphereGeometry`, so the web planets line up exactly with the B
 3. Run `bake <id>` and `thumbs <id>`. The manifest updates and the type appears in the "New planet" picker.
 4. Give it a base size in `TYPE_RADIUS` (`web/src/planet.js` and `galaxy_scene.py`).
 
-A new galaxy style is one entry in `GALAXY_STYLES` in `backdrop.js` (colours, number of arms, pitch).
+A new star is one entry in `STARS` in `web/src/assets.js` (plus its albedo in `web/assets/stars/`); a new sky tint is one entry in `NEBULAE` in `web/src/data.js`.

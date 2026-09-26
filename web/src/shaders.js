@@ -1,4 +1,4 @@
-// GLSL for the planets and the galaxy backdrop.
+// GLSL for the planets: surface, clouds, atmosphere and rings.
 // All shaders output linear HDR; tone mapping + sRGB happen in the OutputPass.
 
 const common = /* glsl */ `
@@ -9,6 +9,13 @@ vec2 raySphere(vec3 ro, vec3 rd, float r) {
   if (h < 0.0) return vec2(1e9, -1e9);
   h = sqrt(h);
   return vec2(-b - h, -b + h);
+}
+
+// Rotate a colour around the grey axis (the "colour shift" slider in the planet dialog).
+vec3 hueShift(vec3 c, float a) {
+  const vec3 k = vec3(0.57735);
+  float ca = cos(a);
+  return max(c * ca + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - ca), 0.0);
 }
 `;
 
@@ -41,6 +48,8 @@ void main() {
 `;
 
 export const surfaceFrag = /* glsl */ `
+${common}
+uniform float uHue;
 uniform sampler2D uColorMap;
 uniform sampler2D uNormalMap;
 uniform sampler2D uSpecMap;
@@ -82,7 +91,7 @@ void main() {
   float ndlG = dot(Ng, L);
   float ndl = dot(N, L);
 
-  vec3 albedo = texture2D(uColorMap, vUv).rgb * uTint;
+  vec3 albedo = hueShift(texture2D(uColorMap, vUv).rgb, uHue) * uTint;
 
   // diffuse: Lambert, blended towards Lommel-Seeliger for dusty regolith
   float mu0 = max(ndl, 0.0);
@@ -127,7 +136,7 @@ void main() {
 
   // night lights / lava glow
   if (uHasEmissive > 0.5) {
-    vec3 em = texture2D(uEmissiveMap, vUv).rgb;
+    vec3 em = hueShift(texture2D(uEmissiveMap, vUv).rgb, uHue);
     float night = mix(1.0 - smoothstep(-0.14, 0.06, ndlG), 1.0, uEmissiveAlways);
     col += em * uEmissiveStrength * night * (1.0 - 0.8 * cloud);
   }
@@ -268,6 +277,8 @@ void main() {
 `;
 
 export const ringFrag = /* glsl */ `
+${common}
+uniform float uHue;
 uniform sampler2D uRingMap;
 uniform float uInner;
 uniform float uOuter;
@@ -298,92 +309,8 @@ void main() {
   float tc = -dot(p, L);
   float shadow = 1.0;
   if (tc > 0.0) shadow = smoothstep(uRp * 0.97, uRp * 1.01, length(p + L * tc));
-  vec3 col = s.rgb * uTint * uSunColor * bright * (0.04 + 0.96 * shadow);
+  vec3 col = hueShift(s.rgb, uHue) * uTint * uSunColor * bright * (0.04 + 0.96 * shadow);
   float a = s.a * uFade;
   gl_FragColor = vec4(col * a, a);
-}
-`;
-
-// ------------------------------------------------------------------ galaxy particles
-export const galaxyVert = /* glsl */ `
-uniform float uTime;
-uniform float uSpin;
-uniform float uScale;
-uniform float uPixelRatio;
-uniform float uFade;
-attribute float aRadius;
-attribute float aAngle;
-attribute float aHeight;
-attribute float aSize;
-attribute vec3 aColor;
-varying vec3 vColor;
-void main() {
-  float omega = uSpin / (1.0 + aRadius / 45.0);
-  float ang = aAngle + uTime * omega;
-  vec3 pos = vec3(cos(ang) * aRadius, aHeight, sin(ang) * aRadius);
-  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
-  float dist = max(-mv.z, 0.001);
-  float size = aSize * uScale * uPixelRatio / dist;
-  float k = 1.0;
-  float minSize = 1.6 * uPixelRatio;
-  if (size < minSize) { k = pow(size / minSize, 1.35); size = minSize; }
-  size = min(size, 42.0 * uPixelRatio);
-  float nearFade = smoothstep(0.8, 5.0, dist);
-  vColor = aColor * k * nearFade * uFade;
-  gl_PointSize = size;
-  gl_Position = projectionMatrix * mv;
-}
-`;
-
-export const galaxyFrag = /* glsl */ `
-varying vec3 vColor;
-void main() {
-  vec2 c = gl_PointCoord - 0.5;
-  float d2 = dot(c, c) * 4.0;
-  if (d2 > 1.0) discard;
-  float a = exp(-d2 * 4.5) * (1.0 - d2);
-  gl_FragColor = vec4(vColor * a, 1.0);
-}
-`;
-
-export const dustFrag = /* glsl */ `
-varying vec3 vColor;
-uniform float uOpacity;
-void main() {
-  vec2 c = gl_PointCoord - 0.5;
-  float d2 = dot(c, c) * 4.0;
-  if (d2 > 1.0) discard;
-  float a = exp(-d2 * 2.5) * (1.0 - d2) * uOpacity;
-  gl_FragColor = vec4(vColor * a, a);
-}
-`;
-
-// ------------------------------------------------------------------ orbit trails
-export const orbitVert = /* glsl */ `
-attribute float aT;
-varying float vT;
-varying float vFacing;
-void main() {
-  vT = aT;
-  vec4 wp = modelMatrix * vec4(position, 1.0);
-  // fade where the orbit is seen edge-on (it would collapse into a bright streak)
-  vFacing = smoothstep(0.04, 0.3, abs(normalize(wp.xyz - cameraPosition).y));
-  gl_Position = projectionMatrix * viewMatrix * wp;
-}
-`;
-
-export const orbitFrag = /* glsl */ `
-uniform float uPhase;
-uniform float uBase;
-uniform float uTrail;
-uniform vec3 uColor;
-uniform float uFade;
-varying float vT;
-varying float vFacing;
-void main() {
-  float d = fract(uPhase - vT);           // 0 right behind the planet
-  float trail = exp(-d * 9.0) * uTrail;
-  float a = (uBase + trail) * uFade * vFacing;
-  gl_FragColor = vec4(uColor * a, a);
 }
 `;

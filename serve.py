@@ -2,12 +2,13 @@
 
     python3 serve.py            # http://localhost:5173
     python3 serve.py 8080
+    PORT=8080 python3 serve.py
 """
 import http.server
 import os
 import sys
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5173
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get('PORT', 5173))
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web')
 
 

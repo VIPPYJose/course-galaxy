@@ -3,13 +3,18 @@ import {
   surfaceVert, surfaceFrag, cloudFrag, atmoVert, atmoFrag, ringVert, ringFrag,
 } from './shaders.js';
 
-// Base radius (world units) per planet type; a course can scale it (size S/M/L).
+// Base radius (world units) per planet type; the planet's size slider scales it.
 export const TYPE_RADIUS = {
   terra: 1.0, dune: 0.82, jovian: 2.0, saturn: 1.55, glacier: 0.72,
   inferno: 0.9, neptune: 1.45, luna: 0.58,
 };
 
-const SIZE_SCALE = { s: 0.8, m: 1.0, l: 1.25 };
+// Deterministic 0..1 random from a string, so a planet keeps its tilt, spin and orbit phase.
+export function rand(str, salt = 0) {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 100000) / 100000;
+}
 
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
 WHITE.needsUpdate = true;
@@ -48,30 +53,32 @@ export class TextureBank {
 
 export class Planet {
   /**
-   * @param {object} course  course record ({id, title, type, size, orbit, ...})
-   * @param {object} def     planet type definition from assets/planets.json
+   * @param {object} data  planet record ({id, name, course, type, size, hue, ...})
+   * @param {object} def   planet type definition from assets/planets.json
    * @param {TextureBank} bank
    */
-  constructor(course, def, bank) {
-    this.course = course;
+  constructor(data, def, bank) {
+    this.data = data;
     this.def = def;
     this.bank = bank;
-    this.radius = TYPE_RADIUS[def.id] * (SIZE_SCALE[course.size] || 1);
-    this.fade = 0;          // 0..1 appear animation
+    this.radius = (TYPE_RADIUS[def.id] ?? 1) * (data.size ?? 1);
+    this.fade = 0;          // 0..1 appear animation (only runs once the textures are in)
     this.visibility = 1;    // occlusion fade
     this.hover = 0;
     this.hoverTarget = 0;
-    this.spin = (course.orbit.spin0 ?? 0);
+    this.spin = rand(data.id, 5) * Math.PI * 2;
+    this.spinSpeed = 0.02 + rand(data.id, 7) * 0.03;
     this.cloudDrift = 0;
     this.isHero = false;
+    this.loaded = false;
 
     this.group = new THREE.Group();        // orbital position
     this.tilt = new THREE.Group();         // axial tilt
     this.group.add(this.tilt);
     // ringed worlds get a healthy tilt so their rings rarely sit edge-on
-    const tiltDeg = course.orbit.tilt ?? def.tilt ?? 10;
+    const tiltDeg = (def.tilt ?? 10) + (rand(data.id, 3) - 0.5) * 10;
     const tilt = THREE.MathUtils.degToRad(def.rings ? Math.max(tiltDeg, 18) : tiltDeg);
-    this.tilt.rotation.set(0, course.orbit.tiltYaw ?? 0, tilt, 'YXZ');
+    this.tilt.rotation.set(0, rand(data.id, 4) * Math.PI * 2, tilt, 'YXZ');
 
     const m = def.maps;
     const tex = (key, srgb) => (m[key] ? bank.get(m[key], { srgb }) : null);
@@ -79,9 +86,12 @@ export class Planet {
       color: tex('color', true), normal: tex('normal', false), spec: tex('spec', false),
       emissive: tex('emissive', true), clouds: tex('clouds', false), rings: tex('rings', true),
     };
-    this.ready = Promise.all(Object.values(this.maps).filter(Boolean).map((e) => e.promise));
+    this.ready = Promise.all(Object.values(this.maps).filter(Boolean).map((e) => e.promise)).then(() => {
+      this.loaded = true;
+    });
 
-    const tint = new THREE.Vector3(...(course.tint || [1, 1, 1]));
+    const tint = new THREE.Vector3(1, 1, 1);
+    this.hue = { value: data.hue ?? 0 };
     const atmoColor = new THREE.Vector3(...(def.atmo?.color || [0.5, 0.7, 1]));
     this.sharedUniforms = {
       uSunDir: { value: new THREE.Vector3(1, 0, 0) },
@@ -107,6 +117,7 @@ export class Planet {
       uHasClouds: { value: m.clouds ? 1 : 0 },
       uHasRings: { value: def.rings ? 1 : 0 },
       uTint: { value: tint },
+      uHue: this.hue,
       uSpecStrength: { value: def.spec ?? 0 },
       uEmissiveStrength: { value: def.emissive_strength ?? 0 },
       uEmissiveAlways: { value: def.emissive_always ? 1 : 0 },
@@ -198,6 +209,7 @@ export class Planet {
         uCenter: { value: new THREE.Vector3() },
         uRp: { value: this.radius },
         uTint: { value: tint },
+        uHue: this.hue,
       };
       this.rings = new THREE.Mesh(
         new THREE.RingGeometry(inner, outer, 256, 1),
@@ -214,27 +226,18 @@ export class Planet {
     // framing radius: what has to fit on screen when this planet is the hero
     this.frameRadius = this.radius * (def.rings ? def.rings.outer * 0.78 : 1.12);
     this.hiResRequested = false;
+
+    // Invisible proxy that makes small, distant planets easy to click (follows the grow scale).
+    this.proxy = new THREE.Mesh(
+      new THREE.SphereGeometry(Math.max(this.radius * 1.6, this.frameRadius), 12, 8),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    this.proxy.userData.planetId = data.id;
+    this.group.add(this.proxy);
   }
 
   get position() {
     return this.group.position;
-  }
-
-  /** orbital angle at time t (seconds) */
-  orbitAngle(t) {
-    const o = this.course.orbit;
-    return o.angle0 + o.speed * t;
-  }
-
-  placeAt(t, target = this.group.position) {
-    const o = this.course.orbit;
-    const a = this.orbitAngle(t);
-    const inc = THREE.MathUtils.degToRad(o.incl || 0);
-    const x = Math.cos(a) * o.radius;
-    const z = Math.sin(a) * o.radius;
-    // inclined orbit: rotate around the line of nodes (x axis)
-    target.set(x, Math.sin(a) * o.radius * Math.sin(inc), z * Math.cos(inc));
-    return target;
   }
 
   setHero(isHero) {
@@ -252,21 +255,21 @@ export class Planet {
     }
   }
 
-  update(dt, t, env) {
-    this.placeAt(t);
-    this.fade = Math.min(1, this.fade + dt * 0.9);
+  /** Per-frame shading update; the star system has already placed `group` on its orbit. */
+  update(dt, env) {
+    if (this.loaded) this.fade = Math.min(1, this.fade + dt * 0.9);
     this.hover += (this.hoverTarget - this.hover) * Math.min(1, dt * 8);
     const f = easeOutCubic(this.fade) * this.visibility;
     this.sharedUniforms.uFade.value = f;
     this.surfaceUniforms.uHover.value = this.hover * 0.6;
     this.sharedUniforms.uSunDir.value.copy(env.sunDir);
     this.sharedUniforms.uCorePos.value.copy(env.corePos);
+    this.sharedUniforms.uRimColor.value.copy(env.rimColor);
     const grow = 0.55 + 0.45 * easeOutBack(this.fade);
     this.group.scale.setScalar(grow);
 
     // spin & clouds
-    const o = this.course.orbit;
-    this.spin += dt * (o.spinSpeed ?? 0.03);
+    this.spin += dt * this.spinSpeed;
     this.surface.rotation.y = this.spin;
     if (this.clouds) {
       this.cloudDrift += dt * 0.004 * (this.def.cloud_speed ?? 1);
