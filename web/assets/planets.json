@@ -246,6 +246,421 @@
       "emissive_strength": 0.0,
       "clouds": 0.0,
       "lunar": 1.0
+    },
+    {
+      "id": "thalassa",
+      "name": "Thalassa",
+      "kind": "Archipelago ocean world",
+      "maps": {
+        "color": "assets/planets/thalassa/color.webp",
+        "colorHi": "assets/planets/thalassa/color_4k.webp",
+        "normal": "assets/planets/thalassa/normal.webp",
+        "spec": "assets/planets/thalassa/spec.webp",
+        "emissive": "assets/planets/thalassa/emissive.webp",
+        "clouds": "assets/planets/thalassa/clouds.webp",
+        "thumb": "assets/planets/thalassa/thumb.webp"
+      },
+      "tilt": 22.0,
+      "atmo": {
+        "color": [
+          0.35,
+          0.65,
+          1.0
+        ],
+        "thickness": 0.075,
+        "intensity": 1.1,
+        "sunset": [
+          1.0,
+          0.5,
+          0.25
+        ]
+      },
+      "spec": 1.0,
+      "night_lights": true,
+      "emissive_strength": 1.2,
+      "clouds": 1.0,
+      "lunar": 0.0,
+      "cloud_speed": 1.1
+    },
+    {
+      "id": "sylva",
+      "name": "Sylva",
+      "kind": "Crimson jungle world",
+      "maps": {
+        "color": "assets/planets/sylva/color.webp",
+        "colorHi": "assets/planets/sylva/color_4k.webp",
+        "normal": "assets/planets/sylva/normal.webp",
+        "spec": "assets/planets/sylva/spec.webp",
+        "clouds": "assets/planets/sylva/clouds.webp",
+        "thumb": "assets/planets/sylva/thumb.webp"
+      },
+      "tilt": 14.0,
+      "atmo": {
+        "color": [
+          0.5,
+          0.58,
+          1.0
+        ],
+        "thickness": 0.08,
+        "intensity": 1.2,
+        "sunset": [
+          1.0,
+          0.4,
+          0.3
+        ]
+      },
+      "spec": 0.8,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 1.0,
+      "lunar": 0.0,
+      "cloud_speed": 0.9
+    },
+    {
+      "id": "veil",
+      "name": "Veil",
+      "kind": "Sulphuric cloud world",
+      "maps": {
+        "color": "assets/planets/veil/color.webp",
+        "colorHi": "assets/planets/veil/color_4k.webp",
+        "emissive": "assets/planets/veil/emissive.webp",
+        "thumb": "assets/planets/veil/thumb.webp"
+      },
+      "tilt": 3.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.82,
+          0.5
+        ],
+        "thickness": 0.07,
+        "intensity": 1.0,
+        "sunset": [
+          1.0,
+          0.6,
+          0.3
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.8,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "sulfura",
+      "name": "Sulfura",
+      "kind": "Volcanic sulphur moon",
+      "maps": {
+        "color": "assets/planets/sulfura/color.webp",
+        "colorHi": "assets/planets/sulfura/color_4k.webp",
+        "normal": "assets/planets/sulfura/normal.webp",
+        "emissive": "assets/planets/sulfura/emissive.webp",
+        "thumb": "assets/planets/sulfura/thumb.webp"
+      },
+      "tilt": 4.0,
+      "atmo": null,
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 2.5,
+      "emissive_always": true,
+      "clouds": 0.0,
+      "lunar": 0.3
+    },
+    {
+      "id": "tholos",
+      "name": "Tholos",
+      "kind": "Frozen dwarf world",
+      "maps": {
+        "color": "assets/planets/tholos/color.webp",
+        "colorHi": "assets/planets/tholos/color_4k.webp",
+        "normal": "assets/planets/tholos/normal.webp",
+        "thumb": "assets/planets/tholos/thumb.webp"
+      },
+      "tilt": 30.0,
+      "atmo": {
+        "color": [
+          0.4,
+          0.62,
+          1.0
+        ],
+        "thickness": 0.04,
+        "intensity": 0.45,
+        "sunset": [
+          0.6,
+          0.8,
+          1.0
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.4
+    },
+    {
+      "id": "halite",
+      "name": "Halite",
+      "kind": "Salt-flat desert world",
+      "maps": {
+        "color": "assets/planets/halite/color.webp",
+        "colorHi": "assets/planets/halite/color_4k.webp",
+        "normal": "assets/planets/halite/normal.webp",
+        "spec": "assets/planets/halite/spec.webp",
+        "clouds": "assets/planets/halite/clouds.webp",
+        "thumb": "assets/planets/halite/thumb.webp"
+      },
+      "tilt": 16.0,
+      "atmo": {
+        "color": [
+          0.7,
+          0.75,
+          1.0
+        ],
+        "thickness": 0.05,
+        "intensity": 0.6,
+        "sunset": [
+          1.0,
+          0.6,
+          0.45
+        ]
+      },
+      "spec": 0.9,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.7,
+      "lunar": 0.1,
+      "cloud_speed": 1.4
+    },
+    {
+      "id": "janus",
+      "name": "Janus",
+      "kind": "Tidally locked eyeball world",
+      "maps": {
+        "color": "assets/planets/janus/color.webp",
+        "colorHi": "assets/planets/janus/color_4k.webp",
+        "normal": "assets/planets/janus/normal.webp",
+        "spec": "assets/planets/janus/spec.webp",
+        "emissive": "assets/planets/janus/emissive.webp",
+        "clouds": "assets/planets/janus/clouds.webp",
+        "thumb": "assets/planets/janus/thumb.webp"
+      },
+      "tilt": 0.0,
+      "atmo": {
+        "color": [
+          0.4,
+          0.62,
+          1.0
+        ],
+        "thickness": 0.06,
+        "intensity": 0.9,
+        "sunset": [
+          1.0,
+          0.45,
+          0.25
+        ]
+      },
+      "spec": 1.0,
+      "night_lights": false,
+      "emissive_strength": 1.2,
+      "emissive_always": true,
+      "clouds": 1.0,
+      "lunar": 0.0,
+      "cloud_speed": 0.5,
+      "tidal": true
+    },
+    {
+      "id": "prisma",
+      "name": "Prisma",
+      "kind": "Crystalline mineral world",
+      "maps": {
+        "color": "assets/planets/prisma/color.webp",
+        "colorHi": "assets/planets/prisma/color_4k.webp",
+        "normal": "assets/planets/prisma/normal.webp",
+        "spec": "assets/planets/prisma/spec.webp",
+        "emissive": "assets/planets/prisma/emissive.webp",
+        "thumb": "assets/planets/prisma/thumb.webp"
+      },
+      "tilt": 10.0,
+      "atmo": {
+        "color": [
+          0.6,
+          0.5,
+          1.0
+        ],
+        "thickness": 0.03,
+        "intensity": 0.4,
+        "sunset": [
+          0.8,
+          0.6,
+          1.0
+        ]
+      },
+      "spec": 1.0,
+      "night_lights": false,
+      "emissive_strength": 1.4,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "mesa",
+      "name": "Mesa",
+      "kind": "Layered canyonland world",
+      "maps": {
+        "color": "assets/planets/mesa/color.webp",
+        "colorHi": "assets/planets/mesa/color_4k.webp",
+        "normal": "assets/planets/mesa/normal.webp",
+        "spec": "assets/planets/mesa/spec.webp",
+        "thumb": "assets/planets/mesa/thumb.webp"
+      },
+      "tilt": 19.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.7,
+          0.55
+        ],
+        "thickness": 0.045,
+        "intensity": 0.6,
+        "sunset": [
+          0.55,
+          0.7,
+          1.0
+        ]
+      },
+      "spec": 0.6,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.2
+    },
+    {
+      "id": "pyra",
+      "name": "Pyra",
+      "kind": "Scorched hot Jupiter",
+      "maps": {
+        "color": "assets/planets/pyra/color.webp",
+        "colorHi": "assets/planets/pyra/color_4k.webp",
+        "emissive": "assets/planets/pyra/emissive.webp",
+        "thumb": "assets/planets/pyra/thumb.webp"
+      },
+      "tilt": 3.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.55,
+          0.3
+        ],
+        "thickness": 0.04,
+        "intensity": 0.7,
+        "sunset": [
+          1.0,
+          0.4,
+          0.2
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.35,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "viridis",
+      "name": "Viridis",
+      "kind": "Emerald gas giant",
+      "maps": {
+        "color": "assets/planets/viridis/color.webp",
+        "colorHi": "assets/planets/viridis/color_4k.webp",
+        "thumb": "assets/planets/viridis/thumb.webp"
+      },
+      "tilt": 12.0,
+      "atmo": {
+        "color": [
+          0.6,
+          0.95,
+          0.7
+        ],
+        "thickness": 0.035,
+        "intensity": 0.6,
+        "sunset": [
+          1.0,
+          0.8,
+          0.4
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "amethyst",
+      "name": "Amethyst",
+      "kind": "Violet gas giant",
+      "maps": {
+        "color": "assets/planets/amethyst/color.webp",
+        "colorHi": "assets/planets/amethyst/color_4k.webp",
+        "thumb": "assets/planets/amethyst/thumb.webp"
+      },
+      "tilt": 20.0,
+      "atmo": {
+        "color": [
+          0.8,
+          0.65,
+          1.0
+        ],
+        "thickness": 0.035,
+        "intensity": 0.6,
+        "sunset": [
+          1.0,
+          0.6,
+          0.8
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "cyane",
+      "name": "Cyane",
+      "kind": "Ringed ice giant",
+      "maps": {
+        "color": "assets/planets/cyane/color.webp",
+        "colorHi": "assets/planets/cyane/color_4k.webp",
+        "clouds": "assets/planets/cyane/clouds.webp",
+        "rings": "assets/planets/cyane/rings.png",
+        "thumb": "assets/planets/cyane/thumb.webp"
+      },
+      "tilt": 34.0,
+      "atmo": {
+        "color": [
+          0.45,
+          0.8,
+          0.95
+        ],
+        "thickness": 0.06,
+        "intensity": 0.9,
+        "sunset": [
+          0.7,
+          0.9,
+          1.0
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.9,
+      "lunar": 0.0,
+      "cloud_speed": 0.5,
+      "rings": {
+        "inner": 1.55,
+        "outer": 2.05
+      }
     }
   ]
 }

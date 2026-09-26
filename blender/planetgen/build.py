@@ -2,7 +2,7 @@
 
 Run inside Blender:
 
-    import sys; sys.path.insert(0, '/Users/gerald/blender planets/blender')
+    import sys; sys.path.insert(0, '<repo>/blender')
     import planetgen.build as B
     B.build_all()                 # node groups, materials, planet objects, lab scene
     B.render_portrait('terra')    # Cycles render on black, sun-lit
@@ -18,7 +18,8 @@ from mathutils import Vector
 from .nodes import NB
 from . import recipes
 
-PROJECT = '/Users/gerald/blender planets'
+# repo root (this file is blender/planetgen/build.py)
+PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 WEB_PLANETS = os.path.join(PROJECT, 'web', 'assets', 'planets')
 RENDERS = os.path.join(PROJECT, 'renders')
 
@@ -97,8 +98,121 @@ SPECS = {
         emit_strength=0.0, bump=1.0, tilt=(6.0, 0.0), spin=90.0,
         web=dict(atmo=None, spec=0.0, night_lights=False, emissive_strength=0.0, clouds=0.0, lunar=1.0),
     ),
+    # ---------------------------------------------------------------- rocky worlds, set 2
+    'thalassa': dict(
+        name='Thalassa', kind='Archipelago ocean world',
+        emit_strength=1.0, bump=1.0, tilt=(22.0, -8.0), spin=60.0,
+        clouds=dict(radius=1.007, color=(0.94, 0.95, 0.96), bump=0.004),
+        atmo=dict(radius=1.075, color=(0.2, 0.5, 1.0), density=18.0, H=0.012,
+                  mie=0.2, mie_color=(1.0, 1.0, 1.0), mie_g=0.72),
+        web=dict(atmo=dict(color=[0.35, 0.65, 1.0], thickness=0.075, intensity=1.1, sunset=[1.0, 0.5, 0.25]),
+                 spec=1.0, night_lights=True, emissive_strength=1.2, clouds=1.0, lunar=0.0, cloud_speed=1.1),
+    ),
+    'sylva': dict(
+        name='Sylva', kind='Crimson jungle world',
+        emit_strength=0.0, bump=1.0, tilt=(14.0, 20.0), spin=150.0,
+        clouds=dict(radius=1.007, color=(0.93, 0.93, 0.95), bump=0.004),
+        atmo=dict(radius=1.08, color=(0.3, 0.45, 1.0), density=22.0, H=0.013,
+                  mie=0.25, mie_color=(1.0, 0.95, 0.9), mie_g=0.7),
+        web=dict(atmo=dict(color=[0.5, 0.58, 1.0], thickness=0.08, intensity=1.2, sunset=[1.0, 0.4, 0.3]),
+                 spec=0.8, night_lights=False, emissive_strength=0.0, clouds=1.0, lunar=0.0, cloud_speed=0.9),
+    ),
+    'veil': dict(
+        name='Veil', kind='Sulphuric cloud world',
+        emit_strength=1.0, bump=0.0, tilt=(3.0, 0.0), spin=250.0,
+        atmo=dict(radius=1.07, color=(1.0, 0.85, 0.55), density=10.0, H=0.014,
+                  mie=0.7, mie_color=(1.0, 0.9, 0.7), mie_g=0.6),
+        web=dict(atmo=dict(color=[1.0, 0.82, 0.5], thickness=0.07, intensity=1.0, sunset=[1.0, 0.6, 0.3]),
+                 spec=0.0, night_lights=False, emissive_strength=0.8, clouds=0.0, lunar=0.0),
+    ),
+    'sulfura': dict(
+        name='Sulfura', kind='Volcanic sulphur moon',
+        emit_strength=3.0, bump=1.0, tilt=(4.0, 0.0), spin=20.0,
+        web=dict(atmo=None, spec=0.0, night_lights=False, emissive_strength=2.5, emissive_always=True,
+                 clouds=0.0, lunar=0.3),
+    ),
+    'tholos': dict(
+        name='Tholos', kind='Frozen dwarf world',
+        emit_strength=0.0, bump=1.0, tilt=(30.0, 12.0), spin=180.0,
+        atmo=dict(radius=1.04, color=(0.3, 0.55, 1.0), density=2.0, H=0.015,
+                  mie=0.3, mie_color=(0.8, 0.9, 1.0), mie_g=0.7),
+        web=dict(atmo=dict(color=[0.4, 0.62, 1.0], thickness=0.04, intensity=0.45, sunset=[0.6, 0.8, 1.0]),
+                 spec=0.0, night_lights=False, emissive_strength=0.0, clouds=0.0, lunar=0.4),
+    ),
+    'halite': dict(
+        name='Halite', kind='Salt-flat desert world',
+        emit_strength=0.0, bump=1.0, tilt=(16.0, -10.0), spin=330.0,
+        clouds=dict(radius=1.006, color=(0.95, 0.95, 0.96), bump=0.003),
+        atmo=dict(radius=1.05, color=(0.35, 0.55, 1.0), density=6.0, H=0.01,
+                  mie=0.5, mie_color=(1.0, 0.9, 0.85), mie_g=0.65),
+        web=dict(atmo=dict(color=[0.7, 0.75, 1.0], thickness=0.05, intensity=0.6, sunset=[1.0, 0.6, 0.45]),
+                 spec=0.9, night_lights=False, emissive_strength=0.0, clouds=0.7, lunar=0.1, cloud_speed=1.4),
+    ),
+    'janus': dict(
+        name='Janus', kind='Tidally locked eyeball world',
+        emit_strength=1.0, bump=1.0, tilt=(0.0, 0.0), spin=0.0,
+        clouds=dict(radius=1.007, color=(0.94, 0.94, 0.95), bump=0.004),
+        atmo=dict(radius=1.065, color=(0.2, 0.45, 1.0), density=14.0, H=0.012,
+                  mie=0.3, mie_color=(1.0, 0.95, 0.9), mie_g=0.7),
+        web=dict(atmo=dict(color=[0.4, 0.62, 1.0], thickness=0.06, intensity=0.9, sunset=[1.0, 0.45, 0.25]),
+                 spec=1.0, night_lights=False, emissive_strength=1.2, emissive_always=True, clouds=1.0,
+                 lunar=0.0, cloud_speed=0.5, tidal=True),
+    ),
+    'prisma': dict(
+        name='Prisma', kind='Crystalline mineral world',
+        emit_strength=2.0, bump=1.0, tilt=(10.0, 4.0), spin=45.0,
+        atmo=dict(radius=1.03, color=(0.55, 0.45, 1.0), density=3.0, H=0.008,
+                  mie=0.2, mie_color=(0.9, 0.9, 1.0), mie_g=0.6),
+        web=dict(atmo=dict(color=[0.6, 0.5, 1.0], thickness=0.03, intensity=0.4, sunset=[0.8, 0.6, 1.0]),
+                 spec=1.0, night_lights=False, emissive_strength=1.4, clouds=0.0, lunar=0.0),
+    ),
+    'mesa': dict(
+        name='Mesa', kind='Layered canyonland world',
+        emit_strength=0.0, bump=1.0, tilt=(19.0, 7.0), spin=280.0,
+        atmo=dict(radius=1.045, color=(1.0, 0.7, 0.55), density=5.0, H=0.01,
+                  mie=0.6, mie_color=(1.0, 0.8, 0.65), mie_g=0.65),
+        web=dict(atmo=dict(color=[1.0, 0.7, 0.55], thickness=0.045, intensity=0.6, sunset=[0.55, 0.7, 1.0]),
+                 spec=0.6, night_lights=False, emissive_strength=0.0, clouds=0.0, lunar=0.2),
+    ),
+    # ---------------------------------------------------------------- giants, set 2
+    'pyra': dict(
+        name='Pyra', kind='Scorched hot Jupiter',
+        emit_strength=1.5, bump=0.0, tilt=(3.0, 0.0), spin=100.0,
+        atmo=dict(radius=1.04, color=(1.0, 0.55, 0.3), density=5.0, H=0.01,
+                  mie=0.6, mie_color=(1.0, 0.6, 0.35), mie_g=0.6),
+        web=dict(atmo=dict(color=[1.0, 0.55, 0.3], thickness=0.04, intensity=0.7, sunset=[1.0, 0.4, 0.2]),
+                 spec=0.0, night_lights=False, emissive_strength=0.35, clouds=0.0, lunar=0.0),
+    ),
+    'viridis': dict(
+        name='Viridis', kind='Emerald gas giant',
+        emit_strength=0.0, bump=0.0, tilt=(12.0, -5.0), spin=200.0,
+        atmo=dict(radius=1.035, color=(0.5, 0.9, 0.7), density=4.0, H=0.009,
+                  mie=0.5, mie_color=(0.9, 1.0, 0.9), mie_g=0.6),
+        web=dict(atmo=dict(color=[0.6, 0.95, 0.7], thickness=0.035, intensity=0.6, sunset=[1.0, 0.8, 0.4]),
+                 spec=0.0, night_lights=False, emissive_strength=0.0, clouds=0.0, lunar=0.0),
+    ),
+    'amethyst': dict(
+        name='Amethyst', kind='Violet gas giant',
+        emit_strength=0.0, bump=0.0, tilt=(20.0, 10.0), spin=300.0,
+        atmo=dict(radius=1.035, color=(0.75, 0.6, 1.0), density=4.0, H=0.009,
+                  mie=0.5, mie_color=(1.0, 0.9, 1.0), mie_g=0.6),
+        web=dict(atmo=dict(color=[0.8, 0.65, 1.0], thickness=0.035, intensity=0.6, sunset=[1.0, 0.6, 0.8]),
+                 spec=0.0, night_lights=False, emissive_strength=0.0, clouds=0.0, lunar=0.0),
+    ),
+    'cyane': dict(
+        name='Cyane', kind='Ringed ice giant',
+        emit_strength=0.0, bump=0.0, tilt=(34.0, -12.0), spin=20.0,
+        clouds=dict(radius=1.006, color=(0.95, 0.98, 1.0), bump=0.002),
+        atmo=dict(radius=1.06, color=(0.35, 0.75, 1.0), density=10.0, H=0.014,
+                  mie=0.15, mie_color=(0.9, 1.0, 1.0), mie_g=0.6),
+        rings=dict(inner=1.55, outer=2.05, style='narrow'),
+        web=dict(atmo=dict(color=[0.45, 0.8, 0.95], thickness=0.06, intensity=0.9, sunset=[0.7, 0.9, 1.0]),
+                 spec=0.0, night_lights=False, emissive_strength=0.0, clouds=0.9, lunar=0.0, cloud_speed=0.5),
+    ),
 }
-ORDER = ['terra', 'jovian', 'dune', 'saturn', 'glacier', 'inferno', 'neptune', 'luna']
+ORDER = ['terra', 'jovian', 'dune', 'saturn', 'glacier', 'inferno', 'neptune', 'luna',
+         'thalassa', 'sylva', 'veil', 'sulfura', 'tholos', 'halite', 'janus', 'prisma', 'mesa',
+         'pyra', 'viridis', 'amethyst', 'cyane']
 
 
 # ------------------------------------------------------------------------------ utilities
@@ -282,9 +396,34 @@ def atmo_material(pid):
 
 
 # ------------------------------------------------------------------------------ rings
-def ring_profile(inner, outer, n=2048, seed=11):
-    """Saturn-like ring opacity/colour profile (numpy). Returns RGBA float array (n, 4)."""
+def narrow_ring_profile(inner, outer, n=2048, seed=23):
+    """Uranus-like system: a few thin, dark, dense ringlets over a faint dust sheet."""
     import numpy as np
+    rng = np.random.default_rng(seed)
+    r = np.linspace(inner, outer, n)
+    op = 0.015 + 0.01 * rng.random(n)
+    col = np.tile(np.array([0.13, 0.13, 0.14]), (n, 1))
+    span = outer - inner
+    rings = [(0.08, 0.004, 0.5), (0.16, 0.003, 0.45), (0.22, 0.003, 0.5), (0.38, 0.005, 0.6),
+             (0.46, 0.004, 0.55), (0.53, 0.004, 0.6), (0.6, 0.006, 0.7), (0.72, 0.005, 0.65),
+             (0.9, 0.02, 0.85)]   # the last one is the wide, bright "epsilon" ring
+    for pos, w, o in rings:
+        g = np.exp(-((r - (inner + pos * span)) / (w * span)) ** 2)
+        op = np.maximum(op, o * g)
+    eps = np.exp(-((r - (inner + 0.9 * span)) / 0.012) ** 2)
+    col = col * (1 - eps[:, None]) + np.array([0.3, 0.3, 0.32]) * eps[:, None]
+    fade = np.clip((r - inner) / 0.01, 0, 1) * np.clip((outer - r) / 0.01, 0, 1)
+    rgba = np.zeros((n, 4), dtype=np.float32)
+    rgba[:, :3] = np.clip(col, 0, 1)
+    rgba[:, 3] = np.clip(op * fade, 0, 1)
+    return rgba
+
+
+def ring_profile(inner, outer, n=2048, seed=11, style='saturn'):
+    """Ring opacity/colour profile (numpy). Returns RGBA float array (n, 4)."""
+    import numpy as np
+    if style == 'narrow':
+        return narrow_ring_profile(inner, outer, n)
     rng = np.random.default_rng(seed)
     r = np.linspace(inner, outer, n)
 
@@ -334,7 +473,7 @@ def ring_profile(inner, outer, n=2048, seed=11):
 def ring_image(pid):
     import numpy as np
     rs = SPECS[pid]['rings']
-    rgba = ring_profile(rs['inner'], rs['outer'])
+    rgba = ring_profile(rs['inner'], rs['outer'], style=rs.get('style', 'saturn'))
     n = rgba.shape[0]
     h = 4
     name = f'IMG_{pid}_rings'
@@ -427,17 +566,23 @@ def gas_textures(pid, force=False, W=4096, H=2048):
     ensure_dir(TEXTURES)
     cpath = os.path.join(TEXTURES, f'{pid}_color.png')
     kpath = os.path.join(TEXTURES, f'{pid}_clouds.png')
+    epath = os.path.join(TEXTURES, f'{pid}_emissive.png')
     cfg, seed = gasgiant.PRESETS[pid]
     wants_clouds = 'clouds' in cfg
-    if force or not os.path.exists(cpath) or (wants_clouds and not os.path.exists(kpath)):
+    wants_emit = 'emissive' in cfg
+    if force or not os.path.exists(cpath) or (wants_clouds and not os.path.exists(kpath)) \
+            or (wants_emit and not os.path.exists(epath)):
         import time
         t = time.time()
-        col, clouds = gasgiant.generate(cfg, W=W, H=H, seed=seed)
+        col, clouds, emissive = gasgiant.generate(cfg, W=W, H=H, seed=seed)
         _image_from_array(f'SRC_{pid}_color', col, 'sRGB', cpath)
         if clouds is not None:
             _image_from_array(f'SRC_{pid}_clouds', clouds, 'Non-Color', kpath)
+        if emissive is not None:
+            _image_from_array(f'SRC_{pid}_emissive', emissive, 'sRGB', epath)
         print(f'[gas] generated {pid} in {time.time() - t:.1f}s')
-    for name, path, cs in [(f'SRC_{pid}_color', cpath, 'sRGB'), (f'SRC_{pid}_clouds', kpath, 'Non-Color')]:
+    for name, path, cs in [(f'SRC_{pid}_color', cpath, 'sRGB'), (f'SRC_{pid}_clouds', kpath, 'Non-Color'),
+                           (f'SRC_{pid}_emissive', epath, 'sRGB')]:
         if os.path.exists(path):
             img = bpy.data.images.get(name)
             if img is None or bpy.path.abspath(img.filepath) != path:
@@ -453,7 +598,8 @@ def build_planet(pid, library):
     spec = SPECS[pid]
     coll = get_collection(f'PT_{pid}', library)
     remove_objects(coll)
-    if pid in ('jovian', 'saturn', 'neptune'):
+    from . import gasgiant
+    if pid in gasgiant.PRESETS:
         gas_textures(pid)
     ng = build_group(pid)
     root = bpy.data.objects.new(f'{pid}_root', None)

@@ -8,7 +8,8 @@
 // `belt` turns the ring of asteroids on or off; left out, giant planets get one by default.
 // A planet is "saved" when completed === lessons.
 
-const STORAGE_KEY = 'course-galaxy/v2';
+// v3: the demo galaxies grew to seven planets each (21 distinct worlds)
+const STORAGE_KEY = 'course-galaxy/v3';
 
 export const NEBULAE = {
   violet: { label: 'Violet', a: '#2a1250', b: '#0c1a4a' },
@@ -35,9 +36,10 @@ function defaults() {
         planets: [
           planet('Algebra', 'Algebra I: Equations & Functions', 'terra', 12, 12),
           planet('Vulcan', 'Physics: Forces & Energy', 'inferno', 10, 4),
-          planet('Miasma', 'Chemistry: Reactions', 'neptune', 14, 2),
-          planet('Verdant', 'Biology: Life Systems', 'dune', 12, 7),
-          planet('Prism', 'Computer Science: Algorithms', 'glacier', 16, 1),
+          planet('Miasma', 'Chemistry: Reactions', 'veil', 14, 2),
+          planet('Verdant', 'Biology: Life Systems', 'sylva', 12, 7),
+          planet('Prism', 'Computer Science: Algorithms', 'prisma', 16, 1),
+          planet('Kepler', 'Calculus: Limits & Derivatives', 'jovian', 9, 3),
           planet('Titan', 'Astronomy: The Cosmos', 'saturn', 8, 0),
         ],
       },
@@ -48,9 +50,12 @@ function defaults() {
         nebula: 'ember',
         planets: [
           planet('Dunehold', 'World History: Ancient Empires', 'dune', 10, 6),
-          planet('Cinder', 'Literature: The Novel', 'inferno', 9, 9),
+          planet('Cinder', 'Literature: The Novel', 'sulfura', 9, 9),
           planet('Selene', 'Philosophy: Ethics', 'luna', 6, 1),
-          planet('Atlas', 'Geography: Earth Systems', 'terra', 11, 3),
+          planet('Atlas', 'Geography: Earth Systems', 'thalassa', 11, 3),
+          planet('Chronos', 'Archaeology: Lost Civilizations', 'mesa', 8, 2),
+          planet('Babel', 'Linguistics: How Language Works', 'janus', 10, 0),
+          planet('Agora', 'Economics: Markets & Trade', 'pyra', 12, 5),
         ],
       },
       {
@@ -60,8 +65,12 @@ function defaults() {
         nebula: 'teal',
         planets: [
           planet('Aria', 'Music Theory', 'neptune', 8, 2),
-          planet('Chroma', 'Visual Design', 'jovian', 10, 10),
+          planet('Chroma', 'Visual Design', 'amethyst', 10, 10),
           planet('Frost', 'Film & Story', 'glacier', 7, 0),
+          planet('Lumen', 'Photography: Light & Lens', 'cyane', 9, 4),
+          planet('Salina', 'Architecture: Space & Form', 'halite', 11, 1),
+          planet('Tholos', 'Poetry: Form & Voice', 'tholos', 6, 3),
+          planet('Verdigris', 'Game Design: Systems & Play', 'viridis', 12, 6),
         ],
       },
     ],

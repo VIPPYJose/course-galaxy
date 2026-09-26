@@ -17,14 +17,21 @@ import planetgen.build as B  # noqa: E402
 
 
 def enable_gpu():
-    try:
-        prefs = bpy.context.preferences.addons['cycles'].preferences
-        prefs.compute_device_type = 'METAL'
-        prefs.get_devices()
-        for d in prefs.devices:
-            d.use = d.type == 'METAL'
-    except Exception as e:  # pragma: no cover
-        print('GPU setup failed:', e)
+    """Use the first GPU backend this machine has (CUDA/OptiX on NVIDIA, Metal on Apple, ...)."""
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    for backend in ('CUDA', 'OPTIX', 'METAL', 'HIP', 'ONEAPI'):
+        try:
+            prefs.compute_device_type = backend
+            prefs.get_devices()
+            gpus = [d for d in prefs.devices if d.type == backend]
+            if gpus:
+                for d in prefs.devices:
+                    d.use = d.type == backend
+                print('[cli] GPU:', backend, ', '.join(d.name for d in gpus))
+                return
+        except Exception:  # backend not compiled in / not available
+            continue
+    print('[cli] no GPU backend found, rendering on CPU')
 
 
 def clean_default_scene():

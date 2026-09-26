@@ -8,11 +8,13 @@ import { AsteroidBelt } from './asteroids.js';
 export const TYPE_RADIUS = {
   terra: 1.0, dune: 0.82, jovian: 2.0, saturn: 1.55, glacier: 0.72,
   inferno: 0.9, neptune: 1.45, luna: 0.58,
+  thalassa: 1.1, sylva: 1.15, veil: 0.95, sulfura: 0.6, tholos: 0.55, halite: 0.85,
+  janus: 0.9, prisma: 0.75, mesa: 0.88, pyra: 2.1, viridis: 1.75, amethyst: 1.85, cyane: 1.35,
 };
 
 // Giant planets carry a belt of rocks by default (BlenderPlanet's gas giants did). Worlds with
 // real rings never get one: the two would overlap.
-const BELT_TYPES = new Set(['jovian', 'neptune']);
+const BELT_TYPES = new Set(['jovian', 'neptune', 'viridis', 'amethyst']);
 export const BELT = { inner: 1.45, outer: 2.05 };
 
 // Strength of the soft fill on the night side: enough to see the features, well short of daylight.
@@ -32,6 +34,9 @@ export function rand(str, salt = 0) {
   for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   return ((h >>> 0) % 100000) / 100000;
 }
+
+const _q = new THREE.Quaternion();
+const _v = new THREE.Vector3();
 
 const WHITE = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
 WHITE.needsUpdate = true;
@@ -93,7 +98,9 @@ export class Planet {
     this.tilt = new THREE.Group();         // axial tilt
     this.group.add(this.tilt);
     // ringed worlds get a healthy tilt so their rings rarely sit edge-on
-    const tiltDeg = (def.tilt ?? 10) + (rand(data.id, 3) - 0.5) * 10;
+    // tidally locked worlds keep an upright axis so their day side can face the star
+    this.tidal = !!def.tidal;
+    const tiltDeg = this.tidal ? 0 : (def.tilt ?? 10) + (rand(data.id, 3) - 0.5) * 10;
     const tilt = THREE.MathUtils.degToRad(def.rings ? Math.max(tiltDeg, 18) : tiltDeg);
     this.tilt.rotation.set(0, rand(data.id, 4) * Math.PI * 2, tilt, 'YXZ');
 
@@ -309,9 +316,15 @@ export class Planet {
 
     // spin & clouds
     this.spin += dt * this.spinSpeed;
+    if (this.tidal) {
+      // Keep the sub-stellar point (texture u = 0, local -X) turned toward the star.
+      const q = this.tilt.getWorldQuaternion(_q).invert();
+      const s = _v.copy(this.sharedUniforms.uSunDir.value).applyQuaternion(q);
+      this.spin = Math.atan2(s.z, -s.x);
+    }
     this.surface.rotation.y = this.spin;
     if (this.clouds) {
-      this.cloudDrift += dt * 0.004 * (this.def.cloud_speed ?? 1);
+      if (!this.tidal) this.cloudDrift += dt * 0.004 * (this.def.cloud_speed ?? 1);
       this.clouds.rotation.y = this.spin + this.cloudDrift;
       this.surfaceUniforms.uCloudShift.value = -this.cloudDrift / (Math.PI * 2);
     }
