@@ -1,0 +1,251 @@
+{
+  "generator": "blender/planetgen",
+  "planets": [
+    {
+      "id": "terra",
+      "name": "Terra",
+      "kind": "Temperate ocean world",
+      "maps": {
+        "color": "assets/planets/terra/color.webp",
+        "colorHi": "assets/planets/terra/color_4k.webp",
+        "normal": "assets/planets/terra/normal.webp",
+        "spec": "assets/planets/terra/spec.webp",
+        "emissive": "assets/planets/terra/emissive.webp",
+        "clouds": "assets/planets/terra/clouds.webp",
+        "thumb": "assets/planets/terra/thumb.webp"
+      },
+      "tilt": 18.0,
+      "atmo": {
+        "color": [
+          0.3,
+          0.55,
+          1.0
+        ],
+        "thickness": 0.075,
+        "intensity": 1.2,
+        "sunset": [
+          1.0,
+          0.45,
+          0.2
+        ]
+      },
+      "spec": 1.0,
+      "night_lights": true,
+      "emissive_strength": 1.6,
+      "clouds": 1.0,
+      "lunar": 0.0,
+      "cloud_speed": 1.25
+    },
+    {
+      "id": "jovian",
+      "name": "Jovian",
+      "kind": "Banded gas giant",
+      "maps": {
+        "color": "assets/planets/jovian/color.webp",
+        "colorHi": "assets/planets/jovian/color_4k.webp",
+        "thumb": "assets/planets/jovian/thumb.webp"
+      },
+      "tilt": 8.0,
+      "atmo": {
+        "color": [
+          0.95,
+          0.85,
+          0.7
+        ],
+        "thickness": 0.035,
+        "intensity": 0.55,
+        "sunset": [
+          1.0,
+          0.6,
+          0.3
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "dune",
+      "name": "Dune",
+      "kind": "Arid desert world",
+      "maps": {
+        "color": "assets/planets/dune/color.webp",
+        "colorHi": "assets/planets/dune/color_4k.webp",
+        "normal": "assets/planets/dune/normal.webp",
+        "thumb": "assets/planets/dune/thumb.webp"
+      },
+      "tilt": 20.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.62,
+          0.42
+        ],
+        "thickness": 0.05,
+        "intensity": 0.55,
+        "sunset": [
+          0.5,
+          0.65,
+          1.0
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.25
+    },
+    {
+      "id": "saturn",
+      "name": "Aurelia",
+      "kind": "Ringed gas giant",
+      "maps": {
+        "color": "assets/planets/saturn/color.webp",
+        "colorHi": "assets/planets/saturn/color_4k.webp",
+        "rings": "assets/planets/saturn/rings.png",
+        "thumb": "assets/planets/saturn/thumb.webp"
+      },
+      "tilt": 24.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.9,
+          0.7
+        ],
+        "thickness": 0.035,
+        "intensity": 0.5,
+        "sunset": [
+          1.0,
+          0.7,
+          0.4
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.0,
+      "rings": {
+        "inner": 1.2,
+        "outer": 2.35
+      }
+    },
+    {
+      "id": "glacier",
+      "name": "Glacier",
+      "kind": "Frozen ice moon",
+      "maps": {
+        "color": "assets/planets/glacier/color.webp",
+        "colorHi": "assets/planets/glacier/color_4k.webp",
+        "normal": "assets/planets/glacier/normal.webp",
+        "spec": "assets/planets/glacier/spec.webp",
+        "thumb": "assets/planets/glacier/thumb.webp"
+      },
+      "tilt": 12.0,
+      "atmo": {
+        "color": [
+          0.55,
+          0.8,
+          1.0
+        ],
+        "thickness": 0.03,
+        "intensity": 0.35,
+        "sunset": [
+          0.8,
+          0.9,
+          1.0
+        ]
+      },
+      "spec": 0.35,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 0.15
+    },
+    {
+      "id": "inferno",
+      "name": "Inferno",
+      "kind": "Volcanic lava world",
+      "maps": {
+        "color": "assets/planets/inferno/color.webp",
+        "colorHi": "assets/planets/inferno/color_4k.webp",
+        "normal": "assets/planets/inferno/normal.webp",
+        "emissive": "assets/planets/inferno/emissive.webp",
+        "thumb": "assets/planets/inferno/thumb.webp"
+      },
+      "tilt": 15.0,
+      "atmo": {
+        "color": [
+          1.0,
+          0.45,
+          0.2
+        ],
+        "thickness": 0.05,
+        "intensity": 0.6,
+        "sunset": [
+          1.0,
+          0.3,
+          0.1
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 4.0,
+      "emissive_always": true,
+      "clouds": 0.0,
+      "lunar": 0.0
+    },
+    {
+      "id": "neptune",
+      "name": "Azure",
+      "kind": "Ice giant",
+      "maps": {
+        "color": "assets/planets/neptune/color.webp",
+        "colorHi": "assets/planets/neptune/color_4k.webp",
+        "clouds": "assets/planets/neptune/clouds.webp",
+        "thumb": "assets/planets/neptune/thumb.webp"
+      },
+      "tilt": 28.0,
+      "atmo": {
+        "color": [
+          0.35,
+          0.6,
+          1.0
+        ],
+        "thickness": 0.06,
+        "intensity": 0.9,
+        "sunset": [
+          0.6,
+          0.8,
+          1.0
+        ]
+      },
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.9,
+      "lunar": 0.0,
+      "cloud_speed": 0.6
+    },
+    {
+      "id": "luna",
+      "name": "Luna",
+      "kind": "Cratered moon",
+      "maps": {
+        "color": "assets/planets/luna/color.webp",
+        "colorHi": "assets/planets/luna/color_4k.webp",
+        "normal": "assets/planets/luna/normal.webp",
+        "thumb": "assets/planets/luna/thumb.webp"
+      },
+      "tilt": 6.0,
+      "atmo": null,
+      "spec": 0.0,
+      "night_lights": false,
+      "emissive_strength": 0.0,
+      "clouds": 0.0,
+      "lunar": 1.0
+    }
+  ]
+}

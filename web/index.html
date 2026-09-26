@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Course Galaxy</title>
+  <meta name="description" content="Every course is a planet. Save them all.">
+  <meta name="theme-color" content="#000000">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="stage" aria-label="3D galaxy of course planets" role="img"></div>
+    <div id="labels"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="brand" aria-label="Course Galaxy">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="6.5"/><ellipse cx="16" cy="16" rx="14" ry="5" transform="rotate(-24 16 16)"/></svg>
+        <span>Course Galaxy</span>
+      </div>
+      <div class="galaxy-switch">
+        <button id="galaxyBtn" class="chip" aria-haspopup="menu" aria-expanded="false" aria-controls="galaxyMenu">
+          <span class="eyebrow">Galaxy</span>
+          <span id="galaxyName">…</span>
+          <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+        </button>
+        <div id="galaxyMenu" class="menu" role="menu" hidden></div>
+      </div>
+      <div class="spacer"></div>
+      <button id="addBtn" class="btn primary" type="button">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+        New planet
+      </button>
+    </header>
+
+    <aside id="coursePanel" class="panel course" aria-live="polite">
+      <div class="eyebrow"><span id="cIndex">01 / 01</span><span class="sep">·</span><span id="cType">—</span></div>
+      <h1 id="cTitle">—</h1>
+      <p id="cDesc"></p>
+      <div class="progress">
+        <div class="bar"><div id="cBar"></div></div>
+        <div class="meta"><span id="cStatus" class="status"></span><span id="cPct"></span></div>
+      </div>
+      <div class="actions">
+        <button id="launchBtn" class="btn primary" type="button">Launch mission</button>
+        <button id="saveBtn" class="btn ghost" type="button">Mark as saved</button>
+        <div class="more-wrap">
+          <button id="moreBtn" class="btn icon" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></svg>
+          </button>
+          <div id="moreMenu" class="menu up" role="menu" hidden>
+            <button role="menuitem" data-action="progress">Log progress (+25%)</button>
+            <button role="menuitem" data-action="reset-progress">Reset progress</button>
+            <hr>
+            <button role="menuitem" data-action="remove" class="danger">Remove planet</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <nav class="dock" aria-label="Planets in this galaxy">
+      <button id="prevBtn" class="nav" type="button" aria-label="Previous planet">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <ul id="dockList"></ul>
+      <button id="dockAdd" class="dock-add" type="button" aria-label="Add a new planet">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
+      </button>
+      <button id="nextBtn" class="nav" type="button" aria-label="Next planet">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+      </button>
+    </nav>
+
+    <p class="hint" aria-hidden="true">Drag to orbit · Scroll to zoom · ← → to travel</p>
+
+    <dialog id="addDialog" aria-labelledby="addTitle">
+      <form id="addForm" method="dialog">
+        <header>
+          <h2 id="addTitle">Chart a new planet</h2>
+          <button type="button" class="btn icon" data-close aria-label="Close">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </header>
+        <label class="field">
+          <span>Course name</span>
+          <input name="title" required maxlength="60" placeholder="e.g. Intro to Astrophysics" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Mission brief <em>optional</em></span>
+          <textarea name="description" rows="2" maxlength="180" placeholder="What will learners rescue on this planet?"></textarea>
+        </label>
+        <fieldset class="field">
+          <legend>
+            <span>Planet</span>
+            <button id="surpriseBtn" type="button" class="link">Surprise me</button>
+          </legend>
+          <div id="typeGrid" class="type-grid"></div>
+        </fieldset>
+        <fieldset class="field">
+          <legend><span>Size</span></legend>
+          <div class="seg">
+            <label><input type="radio" name="size" value="s"><span>Small</span></label>
+            <label><input type="radio" name="size" value="m" checked><span>Medium</span></label>
+            <label><input type="radio" name="size" value="l"><span>Large</span></label>
+          </div>
+        </fieldset>
+        <footer>
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Create planet</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="galaxyDialog" aria-labelledby="galaxyTitle">
+      <form id="galaxyForm" method="dialog">
+        <header>
+          <h2 id="galaxyTitle">Chart a new galaxy</h2>
+          <button type="button" class="btn icon" data-close aria-label="Close">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+        </header>
+        <label class="field">
+          <span>Galaxy name</span>
+          <input name="name" required maxlength="40" placeholder="e.g. Data Science Nebula" autocomplete="off">
+        </label>
+        <fieldset class="field">
+          <legend><span>Look</span></legend>
+          <div id="styleGrid" class="style-grid"></div>
+        </fieldset>
+        <footer>
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Warp there</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="warpFlash" class="warp-flash" aria-hidden="true"></div>
+    <div id="loader" class="loader">
+      <div class="loader-ring" aria-hidden="true"></div>
+      <p>Charting the galaxy…</p>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
