@@ -177,6 +177,7 @@ function buildShell() {
       <div class="fg-panel-head" id="fg-right-head"></div>
       <div class="fg-scroll" id="fg-right"></div>
     </aside>
+    <div class="fg-mswitch"><button type="button" data-mv="list">Planet list</button><button type="button" data-mv="edit">Edit planet</button></div>
     <div class="fg-view"><span>DRAG TO LOOK AROUND · SCROLL TO ZOOM</span>
       <button type="button" class="fg-mini" id="fg-spin">AUTO-SPIN</button></div>
     <footer class="fg-foot">
@@ -187,6 +188,8 @@ function buildShell() {
   document.body.append(root);
   S.root = root;
   root.querySelectorAll('.fg-steps button').forEach((b) => b.addEventListener('click', () => goStep(+b.dataset.step)));
+  root.querySelectorAll('.fg-mswitch button').forEach((b) => b.addEventListener('click', () => setMobileView(b.dataset.mv)));
+  setMobileView('list');
   $('#fg-demo', root).addEventListener('click', () => runDemo());
   $('#fg-randall', root).addEventListener('click', randomizeAll);
   $('#fg-cancel', root).addEventListener('click', cancel);
@@ -198,6 +201,12 @@ function buildShell() {
     applyCamera(false);
   });
   renderName();
+}
+
+/** Phones show one planet panel at a time: the list, or the selected planet's editor. */
+function setMobileView(v) {
+  S.root.dataset.mview = v;
+  S.root.querySelectorAll('.fg-mswitch button').forEach((b) => b.classList.toggle('active', b.dataset.mv === v));
 }
 
 function renderName() {
@@ -450,6 +459,7 @@ function renderPlanetList(root) {
     const id = li.dataset.id;
     li.querySelector('.fg-pick').addEventListener('click', () => {
       S.sel = id;
+      setMobileView('edit');
       app.forgeFocus(id);
       renderStep();
     });
@@ -483,6 +493,7 @@ function addPlanet(p, select = true, at = S.draft.planets.length) {
   app.forgeAddPlanet(p);
   if (select || !S.sel) {
     S.sel = p.id;
+    if (select) setMobileView('edit');
     app.forgeFocus(p.id);
   }
   renderStep();
@@ -800,6 +811,7 @@ async function runDemo() {
     }
   };
   window.addEventListener('keydown', keyNext);
+  const follow = setInterval(() => placeSpot(layer), 200);
 
   for (let i = 0; i < DEMO.length && !stopped; i++) {
     const d = DEMO[i];
@@ -833,11 +845,13 @@ async function runDemo() {
     layer.querySelector('p').textContent = d.text;
     layer.querySelector('.tour-bar i').style.width = `${((i + 1) / DEMO.length) * 100}%`;
     layer.querySelector('[data-t=next] .pl').textContent = i === DEMO.length - 1 ? 'FINISH' : 'NEXT';
+    setMobileView(d.right ? 'edit' : 'list');
     spotlight(layer, d.target);
     const act = (d.act ? d.act(ctl) : Promise.resolve()).then(() => !skipped && !stopped && wait(d.act ? 1600 : 4200));
     await Promise.race([act, skipper]);
   }
 
+  clearInterval(follow);
   window.removeEventListener('keydown', keyNext);
   layer.remove();
   S.tour = null;
@@ -854,37 +868,61 @@ async function runDemo() {
 }
 
 function spotlight(layer, sel) {
+  layer.sel = sel;
+  S.root.querySelector(sel)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  placeSpot(layer);
+}
+
+/**
+ * Keep the spotlight and its card on the current step's control. The target is looked up again
+ * every time: the demo's own clicks re-render the panels, which replaces the elements.
+ */
+function placeSpot(layer) {
   const spot = layer.querySelector('.tour-spot');
   const card = layer.querySelector('.tour-card');
-  const el = sel && S.root.querySelector(sel);
-  if (!el) {
-    spot.style.opacity = '0';
-    card.style.left = `${window.innerWidth / 2 - 180}px`;
-    card.style.top = `${window.innerHeight / 2 - 90}px`;
+  const el = layer.sel && S?.root.querySelector(layer.sel);
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const cw = card.offsetWidth || 360;
+  const ch = card.offsetHeight || 200;
+  let r = el?.getBoundingClientRect();
+  if (!r || !r.width || !r.height) {
+    if (el || !layer.sel) {
+      // no target (or it's hidden in this layout): centre the card
+      spot.style.opacity = '0';
+      card.style.left = `${(W - cw) / 2}px`;
+      card.style.top = `${(H - ch) / 2}px`;
+    }
     return;
   }
-  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  const place = () => {
-    const r = el.getBoundingClientRect();
-    const pad = 6;
-    Object.assign(spot.style, {
-      opacity: '1',
-      left: `${r.left - pad}px`,
-      top: `${r.top - pad}px`,
-      width: `${r.width + pad * 2}px`,
-      height: `${Math.min(r.height, window.innerHeight - r.top) + pad * 2}px`,
-    });
-    // put the card beside the highlighted control, toward the middle of the screen
-    const cw = 360;
-    const mid = r.left + r.width / 2 < window.innerWidth / 2;
-    let x = mid ? r.right + 24 : r.left - cw - 24;
-    if (x < 16 || x + cw > window.innerWidth - 16) x = window.innerWidth / 2 - cw / 2;
-    const y = Math.max(80, Math.min(window.innerHeight - 260, r.top));
-    card.style.left = `${x}px`;
-    card.style.top = `${y}px`;
-  };
-  place();
-  setTimeout(place, 400); // after smooth scrolling settles
+  // clip to the visible part of the scrolling panel the control sits in
+  const box = el.closest('.fg-scroll')?.getBoundingClientRect() ?? { top: 0, bottom: H, left: 0, right: W };
+  const top = Math.max(r.top, box.top);
+  const bottom = Math.min(r.bottom, box.bottom);
+  r = { left: r.left, right: r.right, width: r.width, top, bottom, height: Math.max(0, bottom - top) };
+  const pad = 6;
+  Object.assign(spot.style, {
+    opacity: r.height > 0 ? '1' : '0',
+    left: `${r.left - pad}px`,
+    top: `${r.top - pad}px`,
+    width: `${r.width + pad * 2}px`,
+    height: `${r.height + pad * 2}px`,
+  });
+  let x;
+  let y;
+  if (W <= 760) {
+    // phones: full-width card above or below the highlighted control
+    x = 16;
+    y = r.top + r.height / 2 > H / 2 ? Math.max(8, r.top - ch - 16) : Math.min(H - ch - 8, r.bottom + 16);
+  } else {
+    // beside the control, toward the middle of the screen
+    const onLeft = r.left + r.width / 2 < W / 2;
+    x = onLeft ? r.right + 24 : r.left - cw - 24;
+    if (x < 16 || x + cw > W - 16) x = (W - cw) / 2;
+    y = Math.max(80, Math.min(H - ch - 16, r.top));
+  }
+  card.style.left = `${x}px`;
+  card.style.top = `${y}px`;
 }
 
 async function clickEl(sel, c) {

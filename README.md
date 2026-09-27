@@ -38,13 +38,44 @@ right, the galaxy switcher top-centre and a key-prompt bar bottom-right. Every p
 | Orbit / zoom the focused planet | Drag; scroll or pinch to zoom. The camera only moves when you drag or scroll. |
 | Back to the previous planet | `B` |
 | Launch the course | `Enter` |
-| New / edit / remove planet | `N` / `R` / `X`. Pick a Blender planet type, size, colour shift and whether it has an asteroid belt. |
-| Switch galaxy | `Q` / `E` or the bumpers beside the galaxy name (warp transition). Click the name to list galaxies or create one. |
+| New / edit / remove planet | `N` / `R` / `X`. The dialog has every world setting of the Galaxy Forge (type, look, atmosphere, clouds, rings, belt, moons, tilt, spin) and a **Random planet** button. |
+| Switch galaxy | `Q` / `E` or the bumpers beside the galaxy name (warp transition). |
+| Build a galaxy | Click the galaxy name, then **+ NEW GALAXY** to open the Galaxy Forge (below). **CUSTOMIZE THIS GALAXY** opens the current one in it. |
 
 Switching planets flies a cinematic arc: the camera sweeps around the star, lifts over the orbital
 plane mid-flight with a short FOV punch, and the key light swings over to the new planet's framing.
 
-Data is saved in `localStorage` (key `course-galaxy/v2`). Delete that key to get the demo galaxies back.
+Data is saved in `localStorage` (key `course-galaxy/v3`). Delete that key to get the demo galaxies back.
+
+## The Galaxy Forge
+
+The Forge builds a galaxy step by step while a live 3D preview updates behind its panels. Nothing is
+saved until **CREATE GALAXY** (or **SAVE GALAXY** when customizing an existing one). The first time
+it opens it plays a short guided demo that moves the real controls; replay it with **DEMO** or `?`.
+
+| Step | What you control |
+|---|---|
+| 1. Environment | The sky all round the system, viewable in 360° (drag to look around, or AUTO-SPIN). Eight presets. Nebula: two colours, intensity, cloud scale, spread across the sky, glowing knots, pattern, drift speed. Milky Way: brightness, width, colour, core glow and colour, dust lanes, tilt and rotation of the band. Stars: count, how much they crowd the band, colour (cool to hot), brightness, size, twinkle. Deep space: haze and distant galaxies. |
+| 2. Star | Seven star classes (yellow, orange and red dwarfs, white star, blue giant, red giant, white dwarf). Temperature (sets the star's colour and the colour of the light on every planet), size, surface brightness and texture, colour-by-temperature, limb darkening, rotation, pulse, corona, outer halo, light rays, and how strongly it lights the planets. |
+| 3. Planets | How many (up to 14), their order from the star, duplicate and remove. For each planet: its course (name, course, lessons), one of the 21 types, size, axial tilt, rotation speed; colour shift, saturation, brightness, terrain relief, ocean glint, city lights or lava glow; atmosphere on/off, colour, thickness and glow; cloud cover, wind speed and cloud colour; rings on any world (4 styles, inner and outer edge, colour, density); an asteroid belt; and its moons. |
+| 4. Galaxy | Name, inner orbit distance, orbit spacing, orbit speed, orbit tilt spread, orbit line brightness; the main asteroid belt (on/off, position, rock count, width, thickness, icy rocks); moons on/off and their speed; night-side fill light, exposure, bloom and planet labels. |
+
+Every section has a **RANDOM** button, every step has one, each planet has **Randomize planet**, and
+**RANDOMIZE ALL** rolls a whole new galaxy. Double-click a slider's name to put it back to its default.
+On a phone the planet step shows one panel at a time (**Planet list** / **Edit planet**).
+
+The controls are generated from the schemas in `web/src/params.js` (`SKY_FIELDS`, `SUN_FIELDS`,
+`PLANET_FIELDS`, `SYSTEM_FIELDS`). Adding a field there adds the control, its default and its random
+range; the renderer then reads it through `skyOf`, `sunOf`, `resolvePlanet` or `systemOf`.
+
+**Moons.** Every planet gets the moons a real world of its type would have, unless you give it your
+own: one large moon for Earth-like worlds, two small captured rocks for Mars-like ones, families of
+moons for the gas and ice giants (the Jovian's four "Galileans", a hazy Titan for Aurelia, a
+retrograde Triton for Azure), and a Charon for the Pluto-like Tholos. Worlds that would lose their
+moons or never have them (hot Jupiters, lava worlds hugging their star, Venus-like cloud worlds,
+tidally locked eyeball worlds, and the moon-like types themselves) get none. See `MOON_DEFAULTS` in
+`params.js`. Moons orbit in their planet's equatorial plane outside its rings or belt, keep one face
+toward it, and small ones are lumpy rather than round.
 
 ## Wiring it into the course platform
 
@@ -72,9 +103,16 @@ CourseGalaxy.setProgress(planetId, lessonsCompleted);
 ```
 
 The full API is on `window.CourseGalaxy`: `getState`, `focus`, `switchGalaxy`, `addGalaxy`,
-`addPlanet`, `updatePlanet`, `removePlanet`, `setProgress` and `reset`. A planet is
-`{ id, name, course, type, hue, size, lessons, completed, belt }`, where `type` is a planet type from
-`web/assets/planets.json` and `belt` (optional) turns the ring of asteroids on or off. State persists to `localStorage` in `web/src/data.js`; swap that for your
+`addPlanet`, `updatePlanet`, `removePlanet`, `setProgress`, `openForge` (optionally with a galaxy id
+to customize it) and `reset`.
+
+A galaxy is `{ id, name, star, nebula, sky?, sun?, system?, planets }`. `star` and `nebula` pick a
+preset; `sky`, `sun` and `system` hold the Forge's settings. A planet is
+`{ id, name, course, type, hue, size, lessons, completed, ... }`, where `type` is a planet type from
+`web/assets/planets.json`, plus any of the look settings in `PLANET_FIELDS` (`rings`, `atmo`,
+`clouds`, `tilt`, `belt`, ...) and `moons: [{ type, size, dist, irregular?, retro? }]`. Everything
+optional falls back to the type's (or preset's) defaults, so data saved before the Forge existed
+still loads unchanged. State persists to `localStorage` in `web/src/data.js`; swap that for your
 backend when you wire it up.
 
 ### Web code map (`web/src`)
@@ -83,12 +121,16 @@ backend when you wire it up.
 |---|---|
 | `main.js` | Renderer, bloom, app state, picking, floating labels, galaxy warp, public API |
 | `camera.js` | Focus rig: drag/zoom navigation, the fly-between-planets arc, and the key light |
-| `system.js` | A star system: the star, orbits and layout, the main asteroid belt, occlusion fades, spawn flashes |
+| `system.js` | A star system: the star, orbits and layout, the main asteroid belt, occlusion fades, spawn flashes; star and layout settings apply live |
 | `asteroids.js` | Asteroid belts of individual tumbling rocks (one instanced draw call per belt) |
-| `planet.js` | One planet: surface, cloud layer, atmosphere and ring meshes built from the baked maps |
+| `planet.js` | One planet: surface, cloud layer, atmosphere, ring and moon meshes built from the baked maps and its settings |
+| `params.js` | Every customisable setting (schemas, defaults, random ranges), realistic moons per type, and the resolvers that merge overrides with defaults |
+| `forge.js` | The Galaxy Forge: the four-step editor, live preview, randomizers and the guided demo |
+| `fields.js` | Builds sliders, colour pickers, switches and the planet-type grid from the schemas; the moon editor |
+| `rings.js` | Generated ring textures for ring styles without a baked map |
 | `shaders.js` | GLSL: surface (normal map, ocean glint, city lights, cloud and ring shadows), ray-marched Rayleigh/Mie atmosphere, rings |
-| `assets.js` | Planet-type manifest, the stars, star material (limb darkening), glow sprite |
-| `background.js` | Milky-Way sky dome with nebulae, plus a matching starfield |
+| `assets.js` | Planet-type manifest, the preset stars, star material (limb darkening, temperature tint), glow and ray sprites |
+| `background.js` | Milky-Way sky dome with nebulae, plus a matching starfield, all driven by the sky settings |
 | `data.js` | Galaxies → planets data model, persistence, change events |
 | `ui.js` | Planet list, detail card, galaxy switcher, prompt bar, modals, keyboard, toasts |
 
@@ -187,4 +229,4 @@ matches three.js `SphereGeometry`, so the web planets line up exactly with the B
 3. Run `bake <id>` and `thumbs <id>`. The manifest updates and the type appears in the "New planet" picker.
 4. Give it a base size in `TYPE_RADIUS` (`web/src/planet.js` and `galaxy_scene.py`).
 
-A new star is one entry in `STARS` in `web/src/assets.js` (plus its albedo in `web/assets/stars/`); a new sky tint is one entry in `NEBULAE` in `web/src/data.js`.
+A new star class for the Forge is one entry in `STAR_PRESETS` in `web/src/params.js`; a new sky preset is one entry in `NEBULAE` in `web/src/data.js`. Give a new planet type realistic moons in `MOON_DEFAULTS` (`params.js`).

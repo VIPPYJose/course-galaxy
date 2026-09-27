@@ -195,6 +195,7 @@ const app = {
     await warpOut();
     document.body.classList.add('forging');
     panelRects = null;
+    fitView();
     await this.loadSystem(draft);
     this.forgeFrameStar(true);
     rig.focus(rig.body, { immediate: true, resetView: false });
@@ -243,9 +244,21 @@ const app = {
     rig.autoSpin = 0;
     document.body.classList.remove('forging');
     panelRects = null;
+    fitView();
     await this.switchGalaxy(galaxyId ?? store.galaxy.id, { force: true });
   },
 };
+
+/**
+ * On phones the Forge's panel covers the lower half of the screen, so shift the picture up:
+ * whatever the camera frames then sits in the open space between the top bar and the panel.
+ */
+function fitView() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (app.forge && w <= 760) camera.setViewOffset(w, h, 0, Math.round(h * 0.19), w, h);
+  else camera.clearViewOffset();
+}
 
 async function warpOut() {
   const warp = document.getElementById('warp');
@@ -490,6 +503,7 @@ window.addEventListener('resize', () => {
   const w = window.innerWidth;
   const h = window.innerHeight;
   camera.aspect = w / h;
+  fitView();
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);

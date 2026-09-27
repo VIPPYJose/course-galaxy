@@ -991,6 +991,9 @@ kbd .dice { width: 9px; height: 9px; }
 .pf-world-head .lbl { flex: 1; font: 500 11px var(--f-head); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); }
 .pf-world .fg-sec { padding-top: 10px; }
 
+/* phones: the planet list and the planet editor share one panel slot */
+.fg-mswitch { display: none; }
+
 @media (max-width: 1180px) {
   .fg-top { flex-wrap: wrap; gap: 10px 20px; padding: 10px 20px; }
   .fg-title { min-width: 0; }
@@ -998,13 +1001,48 @@ kbd .dice { width: 9px; height: 9px; }
   .fg-panel { top: 116px; width: 330px; }
   .fg-left { left: 16px; }
   .fg-right { right: 16px; }
-  .fg-view { display: none; }
+  .fg-view span { display: none; }
 }
 @media (max-width: 760px) {
+  .fg-top { gap: 8px; padding: 10px 12px; }
+  .fg-name { font-size: 18px; }
   .fg-tools { gap: 12px; }
-  .fg-steps button { padding: 0 8px 0 4px; font-size: 10px; }
+  .fg-tools .prompt { font-size: 11px; gap: 6px; }
+  .fg-steps { width: 100%; }
+  /* only the current step keeps its name; the others shrink to their number */
+  .fg-steps button { flex: 1; justify-content: center; gap: 0; padding: 0 4px; font-size: 0; }
+  .fg-steps button b { font-size: 11px; }
+  .fg-steps button.active { flex: 2.4; gap: 6px; font-size: 11px; }
   .fg-panel { top: auto; bottom: 70px; left: 8px; right: 8px; width: auto; height: 46vh; }
-  #forge[data-step="planets"] .fg-left { display: none; }
+  .fg-panel-head { padding: 10px 12px; }
+  .fg-panel-head h2 { font-size: 16px; margin-bottom: 0; }
+  .fg-panel-head p { display: none; }
+  .fg-panel-head .fg-btns { margin-top: 8px; }
+  .fg-scroll { padding: 2px 12px 14px; }
+  #forge[data-step="planets"] .fg-mswitch {
+    display: flex;
+    gap: 2px;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: calc(70px + 46vh + 4px);
+  }
+  .fg-mswitch button {
+    flex: 1;
+    height: 32px;
+    background: var(--panel);
+    border: 0;
+    font: 500 11px var(--f-head);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .fg-mswitch button.active { background: var(--sel); color: var(--sel-ink); }
+  #forge[data-step="planets"][data-mview="list"] .fg-right,
+  #forge[data-step="planets"][data-mview="edit"] .fg-left { display: none; }
+  .fg-view { top: 160px; bottom: auto; left: auto; right: 12px; transform: none; }
   .fg-foot { right: 16px; bottom: 18px; gap: 16px; }
-  .tour-card { width: calc(100vw - 32px); left: 16px !important; }
+  .fg-foot .prompt { font-size: 11px; gap: 6px; }
+  .tour-card { width: calc(100vw - 32px); }
+  .fg-row .biomes { grid-template-columns: repeat(4, 1fr); }
 }
