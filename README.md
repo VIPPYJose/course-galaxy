@@ -47,6 +47,21 @@ plane mid-flight with a short FOV punch, and the key light swings over to the ne
 
 Data is saved in `localStorage` (key `course-galaxy/v3`). Delete that key to get the demo galaxies back.
 
+## Cadet onboarding
+
+`http://localhost:5173/onboarding.html` is the three-screen onboarding that runs before the galaxy,
+each screen modelled on a Starfield menu:
+
+| Screen | Starfield reference | What it does |
+|---|---|---|
+| `#cadet` Select your cadet | Character creation record (pale corporate palette) | Pick one of 8 cadet roles from the roster. The suited figure, colours and three discipline insignia change with the role (drag to turn the figure). The **CADET ID** tab takes name, callsign (@username) and an optional tagline. **CONFIRM** unlocks once name and callsign are valid. |
+| `#briefing` Mission briefing | Flight HUD and ship-systems screen | Orders typed out for the named cadet, a "mission added" chip and a cadet-systems panel. |
+| `#rank` How rank works | Inventory screen | Rank list (Cadet, Specialist, Officer, Commander) with a stat card for the selected rank, the two rules and the first assignment. **START MODULE 1** opens the galaxy. |
+
+`Q`/`E` switch tabs (screen 1) or go back and forward (screens 2 and 3). `↑`/`↓` change the selection and `Enter` confirms.
+Hotkeys are ignored while you are typing in a field. The profile is saved in `localStorage` under
+`course-galaxy/cadet`, separate from the galaxy's own save.
+
 ## The Galaxy Forge
 
 The Forge builds a galaxy step by step while a live 3D preview updates behind its panels. Nothing is

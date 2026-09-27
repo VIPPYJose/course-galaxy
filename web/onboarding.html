@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadet Onboarding · Course Galaxy</title>
+    <meta name="description" content="Select your cadet, read your mission briefing and learn how rank works." />
+    <meta name="theme-color" content="#0b1520" />
+    <!-- Starfield's menus use NB Architekt / NB Grotesk (commercial); Red Hat is the free stand-in. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600&family=Red+Hat+Mono:wght@400;500&family=Red+Hat+Text:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="onboarding.css" />
+  </head>
+  <body data-step="cadet">
+    <!-- ============================================================ 1. SELECT YOUR CADET -->
+    <main class="screen cadet" id="screen-cadet" aria-labelledby="cadet-title">
+      <header class="rec-head">
+        <div class="rec-org" id="cadet-title">STARLAB RESEARCH DIVISION</div>
+        <div class="rec-sub">CADET REGISTRY</div>
+        <svg class="rec-logo" viewBox="0 0 80 44" aria-hidden="true">
+          <path d="M4 40 22 4h8L12 40z" />
+          <path d="M34 8h40v6H31zM30 19h40v6H27zM26 30h40v6H23z" />
+        </svg>
+      </header>
+
+      <nav class="rec-tabs" role="tablist" aria-label="Cadet record">
+        <button class="glyph" id="tab-prev" title="Previous tab (Q)" tabindex="-1">Q</button>
+        <button class="rec-tab" role="tab" id="tab-role" aria-controls="pane-role" aria-selected="true">SELECT YOUR CADET</button>
+        <button class="rec-tab" role="tab" id="tab-id" aria-controls="pane-id" aria-selected="false">CADET ID <span id="id-count">0/2</span></button>
+        <button class="glyph" id="tab-next" title="Next tab (E)" tabindex="-1">E</button>
+      </nav>
+
+      <section class="rec-body">
+        <figure class="figure" id="figure" aria-label="Cadet preview">
+          <div class="figure-stage" id="figure-stage"></div>
+          <figcaption class="nameplate">
+            <span class="np-role" id="np-role">—</span>
+            <span class="np-name" id="np-name">UNNAMED CADET</span>
+            <span class="np-call" id="np-call">@callsign</span>
+          </figcaption>
+        </figure>
+
+        <div class="rec-main">
+          <!-- ROLE tab -->
+          <div class="pane" id="pane-role" role="tabpanel" aria-labelledby="tab-role">
+            <h1 class="role-title" id="role-title">—</h1>
+            <p class="role-text" id="role-text">—</p>
+            <div class="skills">
+              <div class="skills-head">DISCIPLINES</div>
+              <div class="skills-row" id="skills"></div>
+            </div>
+          </div>
+
+          <!-- CADET ID tab -->
+          <form class="pane" id="pane-id" role="tabpanel" aria-labelledby="tab-id" hidden autocomplete="off">
+            <h1 class="role-title">Cadet ID</h1>
+            <p class="role-text">This is how the Division will address you on every briefing and transmission. Your callsign is your @username across Course Galaxy.</p>
+            <div class="id-fields">
+              <label class="field">
+                <span class="field-k">CADET NAME</span>
+                <input id="in-name" name="name" maxlength="28" placeholder="e.g. Ada Voss" spellcheck="false" required />
+              </label>
+              <label class="field">
+                <span class="field-k">CALLSIGN</span>
+                <span class="field-at"><i>@</i><input id="in-call" name="callsign" maxlength="18" placeholder="username" spellcheck="false" required /></span>
+                <span class="field-note" id="call-note">Letters, numbers and underscores.</span>
+              </label>
+              <label class="field">
+                <span class="field-k">TAGLINE <em>OPTIONAL</em></span>
+                <input id="in-tag" name="tagline" maxlength="60" placeholder="One line for your crew file" spellcheck="false" />
+              </label>
+            </div>
+          </form>
+        </div>
+
+        <aside class="roster" aria-label="Cadet roster">
+          <ul id="roster" role="listbox" aria-label="Roles"></ul>
+        </aside>
+      </section>
+
+      <footer class="rec-foot">
+        <div class="emp"><span class="emp-k">CADET NUMBER:</span><span class="emp-v" id="cadet-no">—</span></div>
+        <div class="prompts">
+          <button class="prompt" id="p-change"><span class="pl">CHANGE</span><kbd>&#8597;</kbd></button>
+          <button class="prompt" id="p-rotate"><span class="pl">ROTATE</span><kbd>DRAG</kbd></button>
+          <button class="prompt primary" id="p-confirm" disabled><span class="pl">CONFIRM</span><kbd>&#8629;</kbd></button>
+        </div>
+      </footer>
+    </main>
+
+    <!-- ============================================================ 2. MISSION BRIEFING -->
+    <main class="screen dark brief" id="screen-brief" aria-labelledby="brief-title" hidden>
+      <div class="grid-floor" aria-hidden="true"><div class="grid-plane"><span class="axis ax1"></span><span class="axis ax2"></span><span class="tag tag1">DIRECTIVE</span><span class="tag tag2">RANK</span></div></div>
+
+      <div class="mission-chip">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 12h8M12 8v8" /></svg>
+        <div><small>MISSION ADDED</small><b>MAIN QUEST TRAINING</b></div>
+        <span class="mc-obj">COMPLETE MODULE 1</span>
+      </div>
+
+      <div class="top-title">
+        <button class="glyph dark-glyph" data-go="-1" title="Back (Q)">Q</button>
+        <div class="tt">
+          <h1 id="brief-title">Mission Briefing</h1>
+          <span class="tt-count">ORDERS 1/1</span>
+          <span class="tt-sub">StarLab Research Division</span>
+        </div>
+        <button class="glyph dark-glyph" data-go="1" title="Next (E)">E</button>
+      </div>
+
+      <aside class="sys-panel">
+        <div class="sys-title">CADET SYSTEMS</div>
+        <div class="sys-bars" id="sys-bars"></div>
+        <div class="sys-head">Cadet Overview</div>
+        <div class="sys-rows">
+          <div class="sys-row"><span>RANK</span><b>CADET</b></div>
+          <div class="sys-row"><span>XP</span><b>0</b></div>
+          <div class="sys-row"><span>MODULES</span><b>0/4</b></div>
+          <div class="sys-meter"><i style="width:0"></i></div>
+        </div>
+        <div class="sys-grid">
+          <div class="sys-cell"><span class="sc-ico" id="brief-badge"></span><div><span>ROLE</span><b id="brief-role">—</b></div></div>
+          <div class="sys-cell"><span class="sc-ico"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" /><path d="M13 20h14M20 13v14" /></svg></span><div><span>CALLSIGN</span><b id="brief-call">—</b></div></div>
+        </div>
+        <div class="sys-foot"><div><span>LESSONS</span><b>19</b></div><div><span>CAPSTONE</span><b>1</b></div></div>
+      </aside>
+
+      <section class="readout" aria-live="polite">
+        <div class="ro-hint"><span class="ro-ico">i</span><span>PRESS <kbd>&#8629;</kbd> TO BEGIN TRAINING. <kbd>Q</kbd> RETURNS TO THE CADET REGISTRY.</span></div>
+        <div class="ro-panel">
+          <div class="ro-head"><span>MISSION BRIEFING</span><span class="ro-id" id="ro-id">—</span></div>
+          <p class="ro-to" id="ro-to">Cadet —, StarLab Research Division</p>
+          <div class="ro-body" id="ro-body"></div>
+          <p class="ro-tag" id="ro-tag" hidden></p>
+        </div>
+      </section>
+
+      <div class="prompts dark-prompts">
+        <button class="prompt" data-go="-1"><span class="pl">BACK<small>CADET REGISTRY</small></span><kbd>Q</kbd></button>
+        <button class="prompt primary" data-go="1"><span class="pl">BEGIN TRAINING</span><kbd>&#8629;</kbd></button>
+      </div>
+    </main>
+
+    <!-- ============================================================ 3. HOW RANK WORKS -->
+    <main class="screen dark rank" id="screen-rank" aria-labelledby="rank-title" hidden>
+      <header class="crumb" id="rank-title">TRAINING <span class="sep">&gt;</span> HOW RANK WORKS</header>
+
+      <nav class="side-icons" aria-hidden="true">
+        <span class="on"><svg viewBox="0 0 24 24"><path d="M5 17l7-5 7 5M5 12l7-5 7 5" /></svg></span>
+        <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2.5" /></svg></span>
+        <span><svg viewBox="0 0 24 24"><path d="M6 19V9M12 19V5M18 19v-7" /></svg></span>
+        <span><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM5 10h14M10 10v9" /></svg></span>
+      </nav>
+
+      <section class="inv">
+        <div class="inv-head"><span>.. <span class="sep">&gt;</span> RANKS</span><span>ASSIGNMENT</span><span>STATUS</span></div>
+        <ul id="rank-list" role="listbox" aria-label="Ranks"></ul>
+        <div class="inv-rules">
+          <div class="rule"><span class="rule-n">01</span><span>Complete lessons <b>&rarr;</b> earn XP</span></div>
+          <div class="rule"><span class="rule-n">02</span><span>Complete a module's assessment <b>&rarr;</b> rank up</span></div>
+        </div>
+      </section>
+
+      <div class="rank-hero" id="rank-hero" aria-hidden="true"></div>
+
+      <aside class="stat-card" id="stat-card">
+        <div class="sc-head"><div class="sc-name" id="sc-name">—</div><div class="sc-sub" id="sc-sub">—</div><span class="sc-stars">&#10022;&#10022;</span></div>
+        <div class="sc-big"><span class="sc-big-ico" id="sc-ico"></span><div><span>RANK</span><b id="sc-rank">—</b></div></div>
+        <div class="sc-grid">
+          <div><span>TIER</span><b id="sc-tier">—</b></div>
+          <div><span>MODULE</span><b id="sc-mod">—</b></div>
+          <div><span>STATUS</span><b id="sc-status">—</b></div>
+          <div><span>MODULES</span><b>4</b></div>
+          <div><span>LESSONS</span><b>19</b></div>
+          <div><span>CAPSTONE</span><b>1</b></div>
+        </div>
+        <div class="sc-desc" id="sc-desc">—</div>
+      </aside>
+
+      <div class="ladder" aria-label="Rank ladder">
+        <div class="ladder-k">CADET <b>&rarr;</b> SPECIALIST <b>&rarr;</b> OFFICER <b>&rarr;</b> COMMANDER</div>
+        <div class="ladder-v">4 modules. 4 chances to rank up.</div>
+      </div>
+
+      <div class="credits-box">
+        <div><span>CADET</span><b id="cb-name">—</b></div>
+        <div><span>XP</span><b>0</b></div>
+      </div>
+
+      <div class="assignment">
+        <span>YOUR FIRST ASSIGNMENT</span>
+        <b>Module 1 &mdash; How AI Actually Works</b>
+      </div>
+
+      <div class="prompts dark-prompts">
+        <button class="prompt" id="p-rank-sel"><span class="pl">SELECT</span><kbd>&#8597;</kbd></button>
+        <button class="prompt" data-go="-1"><span class="pl">BACK<small>BRIEFING</small></span><kbd>Q</kbd></button>
+        <button class="prompt primary" id="p-start"><span class="pl">START MODULE 1<small>OPEN COURSE GALAXY</small></span><kbd>&#8629;</kbd></button>
+      </div>
+    </main>
+
+    <script type="module" src="src/onboarding.js"></script>
+  </body>
+</html>
